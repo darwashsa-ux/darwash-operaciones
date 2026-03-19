@@ -455,61 +455,50 @@
 
     <!-- ── PAGE: NUEVA CARGA ── -->
     <div class="page" id="page-nueva-carga">
-      <div class="card">
-        <div class="card-title">▸ Registrar Nueva Operación</div>
-        <div id="alert-carga"></div>
+      <div id="alert-carga"></div>
 
-        <div class="form-grid">
+      <!-- SECCIÓN 1: Fechas + Consignataria -->
+      <div class="card">
+        <div class="card-title">① Fecha y Consignataria</div>
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr))">
           <div class="field">
             <label>Fecha Anotación</label>
-            <input type="date" id="c-f-anot">
+            <input type="date" id="c-f-anot" readonly style="opacity:.6;cursor:not-allowed">
+            <small style="color:var(--text2);font-size:10px;margin-top:4px;display:block">Se completa automáticamente</small>
           </div>
           <div class="field">
             <label>Fecha Carga *</label>
             <input type="date" id="c-f-carga">
           </div>
           <div class="field">
-            <label>Titular *</label>
-            <select id="c-titular">
-              <option value="">—</option>
-              <option value="DRW">DRW — Darwash</option>
+            <label>Consignataria *</label>
+            <select id="c-por">
+              <option value="">— Seleccioná —</option>
+              <option value="DRW">DRW — Darwash SA</option>
               <option value="BT">BT — Bulltrade</option>
             </select>
           </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 2: Datos del negocio -->
+      <div class="card">
+        <div class="card-title">② Datos del Negocio</div>
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))">
           <div class="field">
-            <label>Operador / Interesados</label>
+            <label>Vendedor *</label>
+            <input type="text" id="c-titular" placeholder="Nombre del vendedor / productor">
+          </div>
+          <div class="field">
+            <label>Operador / Interesado</label>
             <select id="c-operador">
-              <option value="">—</option>
+              <option value="">— Seleccioná —</option>
               <option value="ML - Miguel Lavaselli">ML — Miguel Lavaselli</option>
               <option value="BP - Pablo Becerra">BP — Pablo Becerra</option>
               <option value="AI - Alfredo Irico">AI — Alfredo Irico</option>
               <option value="DRW - Darwash">DRW — Darwash</option>
               <option value="BT - Bulltrade">BT — Bulltrade</option>
             </select>
-          </div>
-          <div class="field">
-            <label>Cantidad *</label>
-            <input type="number" id="c-cant" placeholder="Ej: 50">
-          </div>
-          <div class="field">
-            <label>Categoría *</label>
-            <select id="c-cat">
-              <option value="">—</option>
-              <option>VQ</option><option>VA</option><option>NOV</option>
-              <option>TM</option><option>TH</option><option>TORO</option>
-              <option>MEJ</option><option>VACA CON CRIA</option><option>VA PREÑADA</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Raza</label>
-            <select id="c-raza">
-              <option value="">—</option>
-              <option>MZO</option><option>HA</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Kgs estimados</label>
-            <input type="number" id="c-kgs" placeholder="Ej: 450">
           </div>
           <div class="field">
             <label>Destino</label>
@@ -527,6 +516,47 @@
             <label>Planta</label>
             <input type="text" id="c-planta" placeholder="Ej: G CATAN">
           </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 3: Hacienda -->
+      <div class="card">
+        <div class="card-title">③ Hacienda</div>
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))">
+          <div class="field">
+            <label>Categoría *</label>
+            <select id="c-cat">
+              <option value="">—</option>
+              <option>VQ</option><option>VA</option><option>NOV</option>
+              <option>TM</option><option>TH</option><option>TORO</option>
+              <option>MEJ</option><option>VACA CON CRIA</option><option>VA PREÑADA</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Raza</label>
+            <select id="c-raza">
+              <option value="">—</option>
+              <option>MZO</option><option>HA</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Cantidad *</label>
+            <input type="number" id="c-cant" placeholder="Ej: 50">
+          </div>
+          <div class="field">
+            <label>Kgs estimados</label>
+            <input type="number" id="c-kgs" placeholder="Ej: 450">
+          </div>
+        </div>
+      </div>
+
+      <!-- SECCIÓN 4: Condiciones comerciales -->
+      <div class="card">
+        <div class="card-title">④ Condiciones Comerciales</div>
+
+        <!-- Comprador -->
+        <div style="margin-bottom:12px;font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);text-transform:uppercase">Comprador</div>
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));margin-bottom:20px">
           <div class="field">
             <label>Acuerdo Comprador</label>
             <select id="c-acu-comp">
@@ -539,6 +569,23 @@
             <input type="number" id="c-vta" placeholder="Ej: 8900">
           </div>
           <div class="field">
+            <label>Plazo Cobro</label>
+            <select id="c-plazo-cobro">
+              <option value="">—</option>
+              <option>Contado</option>
+              <option>10 días</option><option>12 días</option><option>14 días</option>
+              <option>15 días</option><option>18 días</option><option>21 días</option>
+              <option>30 días</option><option>30-60</option><option>30-60-90</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="height:1px;background:var(--border);margin:0 0 20px"></div>
+
+        <!-- Vendedor -->
+        <div style="margin-bottom:12px;font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);text-transform:uppercase">Vendedor</div>
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));margin-bottom:20px">
+          <div class="field">
             <label>Acuerdo Vendedor</label>
             <select id="c-acu-vend">
               <option value="">—</option>
@@ -550,31 +597,30 @@
             <input type="number" id="c-liq" placeholder="Ej: 8900">
           </div>
           <div class="field">
-            <label>Consignataria (Por)</label>
-            <select id="c-por">
+            <label>Plazo Pago</label>
+            <select id="c-plazo-pago">
               <option value="">—</option>
-              <option value="DRW">DRW</option><option value="BT">BT</option>
+              <option>Contado</option>
+              <option>10 días</option><option>12 días</option><option>14 días</option>
+              <option>15 días</option><option>18 días</option><option>21 días</option>
+              <option>30 días</option><option>30-60</option><option>30-60-90</option>
             </select>
-          </div>
-          <div class="field">
-            <label>Fecha Pago</label>
-            <input type="date" id="c-f-pago">
-          </div>
-          <div class="field">
-            <label>Fecha Cobro</label>
-            <input type="date" id="c-f-cobro">
-          </div>
-          <div class="field full">
-            <label>Observaciones</label>
-            <input type="text" id="c-obs" placeholder="Observaciones adicionales">
           </div>
         </div>
 
-        <div class="sep"></div>
-        <div class="flex">
-          <button class="btn" onclick="guardarOperacion()">✓ REGISTRAR OPERACIÓN</button>
-          <button class="btn secondary" onclick="limpiarFormCarga()">LIMPIAR</button>
+        <div style="height:1px;background:var(--border);margin:0 0 20px"></div>
+
+        <!-- Obs -->
+        <div class="field">
+          <label>Observaciones</label>
+          <input type="text" id="c-obs" placeholder="Observaciones adicionales">
         </div>
+      </div>
+
+      <!-- BOTONES -->
+      <div class="flex" style="margin-bottom:32px">
+        <button class="btn" onclick="guardarOperacion()">✓ REGISTRAR OPERACIÓN</button>
+        <button class="btn secondary" onclick="limpiarFormCarga()">LIMPIAR</button>
       </div>
     </div>
 
@@ -745,12 +791,13 @@ async function cargarDashboard() {
 //  GUARDAR OPERACIÓN
 // ════════════════════════════════════════════════════
 async function guardarOperacion() {
-  const titular  = document.getElementById('c-titular').value;
+  const titular  = document.getElementById('c-titular').value.trim();  // vendedor
   const fCarga   = document.getElementById('c-f-carga').value;
   const comprador= document.getElementById('c-comprador').value.trim();
+  const por      = document.getElementById('c-por').value;
 
-  if (!titular || !fCarga || !comprador) {
-    mostrarAlerta('alert-carga', 'error', '⚠ Completá al menos Titular, Fecha de Carga y Comprador');
+  if (!titular || !fCarga || !comprador || !por) {
+    mostrarAlerta('alert-carga', 'error', '⚠ Completá al menos Vendedor, Fecha de Carga, Consignataria y Comprador');
     return;
   }
 
@@ -760,9 +807,9 @@ async function guardarOperacion() {
 
   const op = {
     numero:       nextNum,
-    f_anotacion:  document.getElementById('c-f-anot').value   || new Date().toISOString().split('T')[0],
+    f_anotacion:  new Date().toISOString().split('T')[0],
     f_carga:      fCarga,
-    titular,
+    titular,                                                          // vendedor
     operador:     document.getElementById('c-operador').value,
     cant:         parseInt(document.getElementById('c-cant').value)   || null,
     cat:          document.getElementById('c-cat').value,
@@ -776,8 +823,10 @@ async function guardarOperacion() {
     acuerdo_vend: document.getElementById('c-acu-vend').value,
     liq_vta:      parseFloat(document.getElementById('c-liq').value)  || null,
     por:          document.getElementById('c-por').value,
-    f_pago:       document.getElementById('c-f-pago').value   || null,
-    f_cobro:      document.getElementById('c-f-cobro').value  || null,
+    cas:          document.getElementById('c-plazo-cobro').value || null,  // plazo cobro
+    rinde:        null,
+    f_pago:       null,   // reemplazado por plazo
+    f_cobro:      null,   // reemplazado por plazo
     observaciones:document.getElementById('c-obs').value.trim(),
     estado:       'pendiente',
     notificada:   true,
@@ -802,10 +851,12 @@ async function guardarOperacion() {
 }
 
 function limpiarFormCarga() {
-  ['c-f-anot','c-f-carga','c-cant','c-kgs','c-vta','c-liq','c-f-pago','c-f-cobro','c-obs','c-comprador','c-planta']
+  ['c-f-carga','c-cant','c-kgs','c-vta','c-liq','c-obs','c-comprador','c-planta','c-titular']
     .forEach(id => document.getElementById(id).value = '');
-  ['c-titular','c-operador','c-cat','c-raza','c-destino','c-acu-comp','c-acu-vend','c-por']
+  ['c-operador','c-cat','c-raza','c-destino','c-acu-comp','c-acu-vend','c-por','c-plazo-cobro','c-plazo-pago']
     .forEach(id => document.getElementById(id).value = '');
+  // Resetear fecha anotación a hoy
+  document.getElementById('c-f-anot').value = new Date().toISOString().split('T')[0];
 }
 
 // ════════════════════════════════════════════════════
@@ -1017,8 +1068,8 @@ function armarMensaje(op) {
   msg     += `📅 *${op.f_carga}* | Titular: *${op.titular}*\n`;
   msg     += `🔢 *${op.cant || '?'} ${op.cat || ''} ${op.raza || ''}*\n`;
   msg     += `🏭 *${op.comprador}* (${op.planta || '?'}) · ${op.destino || '?'}\n`;
-  if (op.acuerdo_comp) msg += `📋 Acuerdo comp: *${op.acuerdo_comp}*\n`;
-  if (op.acuerdo_vend) msg += `📋 Acuerdo vend: *${op.acuerdo_vend}*\n`;
+  if (op.acuerdo_comp) msg += `📋 Acuerdo comp: *${op.acuerdo_comp}* | $ *${op.vta || '?'}* | Plazo: *${op.cas || '—'}*\n`;
+  if (op.acuerdo_vend) msg += `📋 Acuerdo vend: *${op.acuerdo_vend}* | $ *${op.liq_vta || '?'}*\n`;
   if (op.observaciones) msg += `📝 ${op.observaciones}\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
   msg     += `⏳ Esperando confirmación de Pablo.`;
@@ -1043,9 +1094,11 @@ window.onload = () => {
     usuario = JSON.parse(saved);
     montarApp();
   }
-  // Setear fecha de hoy por defecto
+  // Fecha anotación = siempre hoy, readonly
   const hoy = new Date().toISOString().split('T')[0];
   document.getElementById('c-f-anot').value = hoy;
+  // Fecha carga default = hoy también
+  document.getElementById('c-f-carga').value = hoy;
 };
 </script>
 </body>
