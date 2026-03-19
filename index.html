@@ -823,10 +823,10 @@ async function guardarOperacion() {
     acuerdo_vend: document.getElementById('c-acu-vend').value,
     liq_vta:      parseFloat(document.getElementById('c-liq').value)  || null,
     por:          document.getElementById('c-por').value,
-    cas:          document.getElementById('c-plazo-cobro').value || null,  // plazo cobro
-    rinde:        null,
-    f_pago:       null,   // reemplazado por plazo
-    f_cobro:      null,   // reemplazado por plazo
+    plazo_cobro:  document.getElementById('c-plazo-cobro').value || null,
+    plazo_pago:   document.getElementById('c-plazo-pago').value  || null,
+    f_pago:       null,
+    f_cobro:      null,
     observaciones:document.getElementById('c-obs').value.trim(),
     estado:       'pendiente',
     notificada:   true,
