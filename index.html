@@ -260,22 +260,40 @@
   .ops-table th {
     font-family: var(--mono);
     font-size: 9px;
-    letter-spacing: 2px;
+    letter-spacing: 1px;
     text-transform: uppercase;
     color: var(--text2);
-    padding: 10px 12px;
+    padding: 10px 10px;
     text-align: left;
     border-bottom: 1px solid var(--border);
+    white-space: nowrap;
   }
 
   .ops-table td {
-    padding: 12px 12px;
+    padding: 10px 10px;
     border-bottom: 1px solid var(--border);
     color: var(--text);
     vertical-align: middle;
+    white-space: nowrap;
+    font-size: 13px;
   }
 
   .ops-table tr:hover td { background: var(--bg3); }
+
+  /* Columnas con ancho fijo para seguimiento */
+  .ops-table .col-num    { width: 40px; }
+  .ops-table .col-fecha  { width: 90px; }
+  .ops-table .col-consig { width: 55px; text-align: center; }
+  .ops-table .col-vendor { width: 130px; }
+  .ops-table .col-hac    { width: 110px; }
+  .ops-table .col-comp   { width: 140px; }
+  .ops-table .col-dest   { width: 60px; text-align: center; }
+  .ops-table .col-acu    { width: 80px; }
+  .ops-table .col-precio { width: 80px; text-align: right; }
+  .ops-table .col-plazo  { width: 80px; text-align: center; }
+  .ops-table .col-estado { width: 100px; text-align: center; }
+  .ops-table .col-dte    { width: 110px; }
+  .ops-table .col-kg     { width: 70px; text-align: right; }
 
   .estado-badge {
     font-family: var(--mono);
@@ -629,16 +647,42 @@
       <div class="card">
         <div class="card-title">▸ Seguimiento de Operaciones</div>
 
-        <div class="flex" style="margin-bottom:16px;flex-wrap:wrap;">
-          <select id="filtro-estado" onchange="cargarSeguimiento()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;">
-            <option value="">Todos los estados</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="confirmada">Confirmada</option>
-            <option value="dte_emitido">DTE Emitido</option>
-            <option value="en_transito">En Tránsito</option>
-            <option value="finalizada">Finalizada</option>
-          </select>
-          <button class="btn small secondary" onclick="cargarSeguimiento()">↻ ACTUALIZAR</button>
+        <!-- FILTROS -->
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:flex-end">
+          <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Estado</div>
+            <select id="filtro-estado" onchange="aplicarFiltros()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none">
+              <option value="">Todos</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="confirmada">Confirmada</option>
+              <option value="dte_emitido">DTE Emitido</option>
+              <option value="en_transito">En Tránsito</option>
+              <option value="finalizada">Finalizada</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Consignataria</div>
+            <select id="filtro-consig" onchange="aplicarFiltros()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none">
+              <option value="">Todas</option>
+              <option value="DRW">DRW</option>
+              <option value="BT">BT</option>
+            </select>
+          </div>
+          <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Desde</div>
+            <input type="date" id="filtro-desde" onchange="aplicarFiltros()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none">
+          </div>
+          <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Hasta</div>
+            <input type="date" id="filtro-hasta" onchange="aplicarFiltros()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none">
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn small" onclick="cargarSeguimiento()">↻ ACTUALIZAR</button>
+            <button class="btn small secondary" onclick="limpiarFiltros()">✕ LIMPIAR</button>
+          </div>
+          <div style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text2);align-self:center">
+            <span id="filtro-count"></span>
+          </div>
         </div>
 
         <div id="tabla-seguimiento"><div class="loading"><span class="spinner"></span>CARGANDO...</div></div>
@@ -862,12 +906,75 @@ function limpiarFormCarga() {
 // ════════════════════════════════════════════════════
 //  SEGUIMIENTO
 // ════════════════════════════════════════════════════
+// Estado global de sorting
+let sortState = { col: 'numero', asc: false };
+let opsCache  = []; // cache para filtros client-side
+
 async function cargarSeguimiento() {
-  const filtro = document.getElementById('filtro-estado')?.value;
-  let query = sb.from('operaciones').select(`id, numero, f_carga, titular, por, cant, cat, raza, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie)`).order('numero', { ascending: false });
-  if (filtro) query = query.eq('estado', filtro);
-  const { data: ops } = await query;
-  document.getElementById('tabla-seguimiento').innerHTML = ops ? renderTablaOps(ops, true) : '<div class="loading">Sin datos</div>';
+  document.getElementById('tabla-seguimiento').innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
+  const { data: ops } = await sb.from('operaciones')
+    .select('id, numero, f_carga, titular, por, cant, cat, raza, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie)')
+    .order('numero', { ascending: false });
+  opsCache = ops || [];
+  aplicarFiltros();
+}
+
+function aplicarFiltros() {
+  const estado = document.getElementById('filtro-estado')?.value || '';
+  const consig = document.getElementById('filtro-consig')?.value || '';
+  const desde  = document.getElementById('filtro-desde')?.value || '';
+  const hasta  = document.getElementById('filtro-hasta')?.value || '';
+
+  let filtradas = opsCache.filter(op => {
+    if (estado && op.estado !== estado) return false;
+    if (consig && op.por !== consig) return false;
+    if (desde  && op.f_carga < desde) return false;
+    if (hasta  && op.f_carga > hasta) return false;
+    return true;
+  });
+
+  // Aplicar sorting
+  filtradas = sortOps(filtradas);
+
+  const countEl = document.getElementById('filtro-count');
+  if (countEl) countEl.textContent = filtradas.length + ' operaciones';
+
+  document.getElementById('tabla-seguimiento').innerHTML = filtradas.length > 0
+    ? renderTablaOps(filtradas, true)
+    : '<div class="alert info">Sin operaciones para los filtros seleccionados</div>';
+}
+
+function sortOps(ops) {
+  return [...ops].sort((a, b) => {
+    let va = a[sortState.col] ?? '';
+    let vb = b[sortState.col] ?? '';
+    // Numérico
+    if (typeof va === 'number' || !isNaN(Number(va))) {
+      va = Number(va); vb = Number(vb);
+    } else {
+      va = String(va).toLowerCase();
+      vb = String(vb).toLowerCase();
+    }
+    if (va < vb) return sortState.asc ? -1 : 1;
+    if (va > vb) return sortState.asc ? 1 : -1;
+    return 0;
+  });
+}
+
+function sortBy(col) {
+  if (sortState.col === col) {
+    sortState.asc = !sortState.asc;
+  } else {
+    sortState.col = col;
+    sortState.asc = true;
+  }
+  aplicarFiltros();
+}
+
+function limpiarFiltros() {
+  ['filtro-estado','filtro-consig','filtro-desde','filtro-hasta']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  aplicarFiltros();
 }
 
 // ════════════════════════════════════════════════════
@@ -1024,23 +1131,29 @@ function renderTablaOps(ops, detallado) {
     <th>Comprador / Planta</th>
     <th>Estado</th>`;
 
+  const sortIndicator = (col) => {
+    if (sortState.col !== col) return ' <span style="opacity:.3">↕</span>';
+    return sortState.asc ? ' <span style="color:var(--accent)">↑</span>' : ' <span style="color:var(--accent)">↓</span>';
+  };
+  const th = (col, label, cls) => `<th class="${cls}" style="cursor:pointer;user-select:none" onclick="sortBy('${col}')">${label}${sortIndicator(col)}</th>`;
+
   const colsSeguimiento = `
-    <th>#</th>
-    <th>F. Carga</th>
-    <th>Consig.</th>
-    <th>Vendedor</th>
-    <th>Cant / Cat / Raza</th>
-    <th>Comprador / Planta</th>
-    <th>Destino</th>
-    <th>Acu. Comp</th>
-    <th>$ Vta</th>
-    <th>Plazo Cobro</th>
-    <th>Acu. Vend</th>
-    <th>$ Liq</th>
-    <th>Plazo Pago</th>
-    <th>Estado</th>
-    <th>N° DTE</th>
-    <th>Kg Pie</th>`;
+    ${th('numero','#','col-num')}
+    ${th('f_carga','F. Carga','col-fecha')}
+    ${th('por','Consig.','col-consig')}
+    ${th('titular','Vendedor','col-vendor')}
+    <th class="col-hac">Hacienda</th>
+    ${th('comprador','Comprador','col-comp')}
+    <th class="col-dest">Dest.</th>
+    <th class="col-acu">Acu.Comp</th>
+    ${th('vta','$ Vta','col-precio')}
+    <th class="col-plazo">Cobro</th>
+    <th class="col-acu">Acu.Vend</th>
+    ${th('liq_vta','$ Liq','col-precio')}
+    <th class="col-plazo">Pago</th>
+    ${th('estado','Estado','col-estado')}
+    <th class="col-dte">N° DTE</th>
+    <th class="col-kg">Kg Pie</th>`;
 
   const rowsDashboard = ops.map(op => `
     <tr>
@@ -1055,22 +1168,22 @@ function renderTablaOps(ops, detallado) {
 
   const rowsSeguimiento = ops.map(op => `
     <tr>
-      <td style="font-family:var(--mono);color:var(--accent)">${op.numero}</td>
-      <td style="font-family:var(--mono);font-size:12px">${op.f_carga || '—'}</td>
-      <td><span style="font-family:var(--mono);font-size:10px;color:var(--accent2)">${op.por || '—'}</span></td>
-      <td>${op.titular || '—'}</td>
-      <td>${op.cant || '?'} <strong>${op.cat || ''}</strong> ${op.raza || ''}</td>
-      <td>${op.comprador || '—'} <span style="color:var(--text2);font-size:12px">(${op.planta || '?'})</span></td>
-      <td><span style="font-family:var(--mono);font-size:11px">${op.destino || '—'}</span></td>
-      <td style="font-family:var(--mono);font-size:11px">${op.acuerdo_comp || '—'}</td>
-      <td style="font-family:var(--mono)">${op.vta ? '$'+Number(op.vta).toLocaleString('es-AR') : '—'}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--warn)">${op.plazo_cobro || '—'}</td>
-      <td style="font-family:var(--mono);font-size:11px">${op.acuerdo_vend || '—'}</td>
-      <td style="font-family:var(--mono)">${op.liq_vta ? '$'+Number(op.liq_vta).toLocaleString('es-AR') : '—'}</td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--warn)">${op.plazo_pago || '—'}</td>
-      <td><span class="estado-badge estado-${op.estado}">${op.estado}</span></td>
-      <td style="font-family:var(--mono);font-size:11px;color:var(--accent)">${op.seguimiento?.[0]?.nro_dte || '—'}</td>
-      <td style="font-family:var(--mono)">${op.seguimiento?.[0]?.kg_pie || '—'}</td>
+      <td class="col-num" style="font-family:var(--mono);color:var(--accent);font-weight:600">${op.numero}</td>
+      <td class="col-fecha" style="font-family:var(--mono);font-size:12px;color:var(--text2)">${op.f_carga || '—'}</td>
+      <td class="col-consig"><span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--accent2);background:var(--bg3);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">${op.por || '—'}</span></td>
+      <td class="col-vendor" style="font-weight:500;color:var(--white)">${op.titular || '—'}</td>
+      <td class="col-hac"><span style="font-family:var(--mono);font-size:12px">${op.cant || '?'}</span> <strong style="color:var(--white)">${op.cat || ''}</strong> <span style="color:var(--text2);font-size:11px">${op.raza || ''}</span></td>
+      <td class="col-comp"><span style="font-weight:500">${op.comprador || '—'}</span> <span style="color:var(--text2);font-size:11px">${op.planta ? '('+op.planta+')' : ''}</span></td>
+      <td class="col-dest"><span style="font-family:var(--mono);font-size:11px;padding:2px 6px;background:var(--bg3);border-radius:4px">${op.destino || '—'}</span></td>
+      <td class="col-acu" style="font-family:var(--mono);font-size:11px;color:var(--text2)">${op.acuerdo_comp || '—'}</td>
+      <td class="col-precio" style="font-family:var(--mono);font-weight:600;color:var(--white)">${op.vta ? '$'+Number(op.vta).toLocaleString('es-AR') : '—'}</td>
+      <td class="col-plazo"><span style="font-family:var(--mono);font-size:11px;color:var(--warn)">${op.plazo_cobro || '—'}</span></td>
+      <td class="col-acu" style="font-family:var(--mono);font-size:11px;color:var(--text2)">${op.acuerdo_vend || '—'}</td>
+      <td class="col-precio" style="font-family:var(--mono);font-weight:600;color:var(--white)">${op.liq_vta ? '$'+Number(op.liq_vta).toLocaleString('es-AR') : '—'}</td>
+      <td class="col-plazo"><span style="font-family:var(--mono);font-size:11px;color:var(--warn)">${op.plazo_pago || '—'}</span></td>
+      <td class="col-estado"><span class="estado-badge estado-${op.estado}">${op.estado}</span></td>
+      <td class="col-dte" style="font-family:var(--mono);font-size:11px;color:var(--accent)">${op.seguimiento?.[0]?.nro_dte || '—'}</td>
+      <td class="col-kg" style="font-family:var(--mono);font-size:12px">${op.seguimiento?.[0]?.kg_pie ? Number(op.seguimiento[0].kg_pie).toLocaleString('es-AR') : '—'}</td>
     </tr>`).join('');
 
   return `<div style="overflow-x:auto">
