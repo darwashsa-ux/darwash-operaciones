@@ -709,8 +709,30 @@
       </div>
 
       <!-- BOTONES -->
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-title">⑤ Cantidad de Cargas</div>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:6px">¿Cuántas cargas iguales?</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button onclick="cambiarCantCargas(-1)" style="width:32px;height:32px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:18px;cursor:pointer;line-height:1">−</button>
+              <input type="number" id="c-cant-cargas" value="1" min="1" max="20"
+                style="width:60px;text-align:center;background:var(--bg3);border:1px solid var(--accent);border-radius:var(--radius);color:var(--white);padding:6px;font-family:var(--mono);font-size:18px;font-weight:600">
+              <button onclick="cambiarCantCargas(1)" style="width:32px;height:32px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;color:var(--white);font-size:18px;cursor:pointer;line-height:1">+</button>
+              <span style="font-family:var(--mono);font-size:11px;color:var(--text2)" id="label-cant-cargas">carga</span>
+            </div>
+          </div>
+          <div style="flex:1;min-width:200px">
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:6px">Info</div>
+            <div style="font-size:12px;color:var(--text2)" id="info-cant-cargas">
+              Se registrará <strong style="color:var(--white)">1 operación</strong> con los datos ingresados.
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="flex" style="margin-bottom:32px">
-        <button class="btn" onclick="guardarOperacion()">✓ REGISTRAR OPERACIÓN</button>
+        <button class="btn" onclick="guardarOperacion()" id="btn-registrar">✓ REGISTRAR OPERACIÓN</button>
         <button class="btn secondary" onclick="limpiarFormCarga()">LIMPIAR</button>
       </div>
     </div>
@@ -937,25 +959,28 @@ async function cargarDashboard() {
 //  GUARDAR OPERACIÓN
 // ════════════════════════════════════════════════════
 async function guardarOperacion() {
-  const titular  = document.getElementById('c-titular').value.trim();  // vendedor
+  const titular  = document.getElementById('c-titular').value.trim();
   const fCarga   = document.getElementById('c-f-carga').value;
   const comprador= document.getElementById('c-comprador').value.trim();
   const por      = document.getElementById('c-por').value;
+  const cantCargas = parseInt(document.getElementById('c-cant-cargas').value) || 1;
 
   if (!titular || !fCarga || !comprador || !por) {
     mostrarAlerta('alert-carga', 'error', '⚠ Completá al menos Vendedor, Fecha de Carga, Consignataria y Comprador');
     return;
   }
 
-  // Obtener próximo número
-  const { data: maxData } = await sb.from('operaciones').select('numero').order('numero', { ascending: false }).limit(1);
-  const nextNum = maxData && maxData.length > 0 && maxData[0].numero ? maxData[0].numero + 1 : 1;
+  const btn = document.getElementById('btn-registrar');
+  btn.disabled = true;
+  btn.textContent = `⏳ REGISTRANDO ${cantCargas} CARGA${cantCargas > 1 ? 'S' : ''}...`;
 
-  const op = {
-    numero:       nextNum,
+  const { data: maxData } = await sb.from('operaciones').select('numero').order('numero', { ascending: false }).limit(1);
+  let nextNum = maxData && maxData.length > 0 && maxData[0].numero ? maxData[0].numero + 1 : 1;
+
+  const baseOp = {
     f_anotacion:  new Date().toISOString().split('T')[0],
     f_carga:      fCarga,
-    titular,                                                          // vendedor
+    titular,
     operador:     document.getElementById('c-operador').value,
     cant:         parseInt(document.getElementById('c-cant').value)   || null,
     cat:          document.getElementById('c-cat').value,
@@ -968,7 +993,7 @@ async function guardarOperacion() {
     vta:          parseFloat(document.getElementById('c-vta').value)  || null,
     acuerdo_vend: document.getElementById('c-acu-vend').value,
     liq_vta:      parseFloat(document.getElementById('c-liq').value)  || null,
-    por:          document.getElementById('c-por').value,
+    por,
     plazo_cobro:  document.getElementById('c-plazo-cobro').value || null,
     plazo_pago:   document.getElementById('c-plazo-pago').value  || null,
     f_pago:       null,
@@ -978,29 +1003,50 @@ async function guardarOperacion() {
     notificada:   true,
   };
 
-  const { data, error } = await sb.from('operaciones').insert([op]).select();
-
-  if (error) {
-    mostrarAlerta('alert-carga', 'error', '❌ Error al guardar: ' + error.message);
-    return;
+  for (let i = 0; i < cantCargas; i++) {
+    const op = { ...baseOp, numero: nextNum + i };
+    const { data, error } = await sb.from('operaciones').insert([op]).select();
+    if (error) {
+      mostrarAlerta('alert-carga', 'error', `❌ Error en carga ${i+1}: ${error.message}`);
+      btn.disabled = false;
+      btn.textContent = '✓ REGISTRAR OPERACIÓN';
+      return;
+    }
+    await sb.from('seguimiento').insert([{ operacion_id: data[0].id }]);
   }
 
-  // Crear fila en seguimiento
-  await sb.from('seguimiento').insert([{ operacion_id: data[0].id }]);
+  // Telegram — mensaje único resumido
+  if (cantCargas === 1) {
+    const msg = armarMensaje({ ...baseOp, numero: nextNum });
+    for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+  } else {
+    let msg  = `🐄 *${cantCargas} CARGAS REGISTRADAS*\n`;
+    msg     += `━━━━━━━━━━━━━━━━━━\n`;
+    msg     += `📅 *${fCarga}* | Consig: *${por}*\n`;
+    msg     += `🏠 Vendedor: *${titular}*\n`;
+    msg     += `🐄 *${baseOp.cant || '?'} ${baseOp.cat || ''} ${baseOp.raza || ''}*\n`;
+    msg     += `🏭 *${comprador}* (${baseOp.planta || '?'}) · ${baseOp.destino || '?'}\n`;
+    msg     += `━━━━━━━━━━━━━━━━━━\n`;
+    msg     += `🔢 Ops #${nextNum} a #${nextNum + cantCargas - 1}`;
+    for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+  }
 
-  // Notificación Telegram
-  const msg = armarMensaje(op);
-  for (const id of ADMINS_TG) await enviarTelegram(id, msg);
-
-  mostrarAlerta('alert-carga', 'success', `✅ Operación #${nextNum} registrada correctamente`);
+  btn.disabled = false;
+  btn.textContent = '✓ REGISTRAR OPERACIÓN';
+  const nums = cantCargas === 1 ? `#${nextNum}` : `#${nextNum} a #${nextNum + cantCargas - 1}`;
+  mostrarAlerta('alert-carga', 'success',
+    `✅ ${cantCargas} operación${cantCargas > 1 ? 'es' : ''} registrada${cantCargas > 1 ? 's' : ''} (${nums})`);
   limpiarFormCarga();
-}
+
 
 function limpiarFormCarga() {
   ['c-f-carga','c-cant','c-kgs','c-vta','c-liq','c-obs','c-comprador','c-planta','c-titular']
     .forEach(id => document.getElementById(id).value = '');
   ['c-operador','c-cat','c-raza','c-destino','c-acu-comp','c-acu-vend','c-por','c-plazo-cobro','c-plazo-pago']
     .forEach(id => document.getElementById(id).value = '');
+  // Resetear cantidad de cargas a 1
+  const cantEl = document.getElementById('c-cant-cargas');
+  if (cantEl) { cantEl.value = 1; actualizarLabelCargas(1); }
   // Resetear fecha anotación a hoy
   document.getElementById('c-f-anot').value = new Date().toISOString().split('T')[0];
 }
@@ -1255,7 +1301,8 @@ function renderTablaOps(ops, detallado) {
     <th class="col-plazo">Pago</th>
     ${th('estado','Estado','col-estado')}
     <th class="col-dte">N° DTE</th>
-    <th class="col-kg">Kg Pie</th>`;
+    <th class="col-kg">Kg Pie</th>
+    <th style="width:60px"></th>`;
 
   const rowsDashboard = ops.map(op => `
     <tr>
@@ -1286,6 +1333,7 @@ function renderTablaOps(ops, detallado) {
       <td class="col-estado"><span class="estado-badge estado-${op.estado}">${op.estado}</span></td>
       <td class="col-dte" style="font-family:var(--mono);font-size:11px;color:var(--accent)">${op.seguimiento?.[0]?.nro_dte || '—'}</td>
       <td class="col-kg" style="font-family:var(--mono);font-size:12px">${op.seguimiento?.[0]?.kg_pie ? Number(op.seguimiento[0].kg_pie).toLocaleString('es-AR') : '—'}</td>
+      <td><button onclick="duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer" title="Duplicar operación">⧉ DUP</button></td>
     </tr>`).join('');
 
   return `<div style="width:100%">
@@ -1329,6 +1377,59 @@ function mostrarAlerta(containerId, tipo, mensaje) {
   const el = document.getElementById(containerId);
   el.innerHTML = `<div class="alert ${tipo}">${mensaje}</div>`;
   setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+
+// ── DUPLICAR OPERACIÓN ───────────────────────────────
+async function duplicarOperacion(opId) {
+  // Buscar la operación original
+  const { data: op } = await sb.from('operaciones').select('*').eq('id', opId).single();
+  if (!op) return;
+
+  // Cambiar a la tab de nueva carga
+  const tabs = document.querySelectorAll('.tab');
+  tabs.forEach(t => {
+    if (t.textContent.includes('Nueva Carga') || t.textContent.includes('NUEVA CARGA')) {
+      t.click();
+    }
+  });
+
+  // Pequeña espera para que renderice el formulario
+  setTimeout(() => {
+    // Poblar el formulario con los datos de la op original
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el && val) el.value = val;
+    };
+
+    // Fecha carga = hoy por defecto (lo más común al duplicar)
+    const hoy = new Date().toISOString().split('T')[0];
+    setVal('c-f-carga',    hoy);
+    setVal('c-por',        op.por);
+    setVal('c-titular',    op.titular);
+    setVal('c-operador',   op.operador);
+    setVal('c-destino',    op.destino);
+    setVal('c-comprador',  op.comprador);
+    setVal('c-planta',     op.planta);
+    setVal('c-cat',        op.cat);
+    setVal('c-raza',       op.raza);
+    setVal('c-cant',       op.cant);
+    setVal('c-kgs',        op.kgs);
+    setVal('c-acu-comp',   op.acuerdo_comp);
+    setVal('c-vta',        op.vta);
+    setVal('c-plazo-cobro',op.plazo_cobro);
+    setVal('c-acu-vend',   op.acuerdo_vend);
+    setVal('c-liq',        op.liq_vta);
+    setVal('c-plazo-pago', op.plazo_pago);
+    setVal('c-obs',        op.observaciones);
+
+    // Mostrar alerta informativa
+    mostrarAlerta('alert-carga', 'info', 
+      `⧉ Duplicando Op #${op.numero} — Revisá los datos y modificá lo necesario antes de registrar`);
+
+    // Scroll al formulario
+    document.getElementById('page-nueva-carga').scrollIntoView({ behavior: 'smooth' });
+
+  }, 300);
 }
 
 // ── NOTIFICACIONES PUSH ──────────────────────────────
