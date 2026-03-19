@@ -1,0 +1,20 @@
+{
+  "name": "DARWASH Operaciones",
+  "short_name": "DARWASH",
+  "description": "Sistema de gestión de operaciones ganaderas — Darwash SA / Bulltrade",
+  "start_url": "/darwash-operaciones/",
+  "display": "standalone",
+  "background_color": "#0a0e14",
+  "theme_color": "#00c896",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "es-AR"
+}
