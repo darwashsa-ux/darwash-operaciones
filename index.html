@@ -2,8 +2,20 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>DARWASH — Operaciones</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#00c896">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="DARWASH">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- iOS splash / icon -->
+<link rel="apple-touch-icon" href="icon.svg">
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
@@ -381,12 +393,26 @@
 
   /* ── RESPONSIVE ───────────────────────────────────── */
   @media (max-width: 600px) {
-    .main { padding: 16px; }
+    .main { padding: 12px; }
     .form-grid { grid-template-columns: 1fr; }
-    .tabs { overflow-x: auto; }
-    .tab { padding: 12px 14px; font-size: 10px; }
-    .ops-table { font-size: 12px; }
-    .ops-table th, .ops-table td { padding: 8px; }
+    .tabs { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab { padding: 12px 14px; font-size: 10px; white-space: nowrap; }
+    .ops-table { font-size: 11px; }
+    .ops-table th, .ops-table td { padding: 7px 6px; }
+    .login-box { padding: 32px 24px; margin: 16px; }
+    .card { padding: 16px; }
+    .topbar { padding: 0 16px; }
+    .topbar-brand { font-size: 11px; }
+    /* Safe area para iPhone con notch */
+    .topbar { padding-top: env(safe-area-inset-top); }
+    body { padding-bottom: env(safe-area-inset-bottom); }
+  }
+
+  /* Prevenir zoom en inputs en iOS */
+  @media (max-width: 600px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
   }
 
   .hidden { display: none !important; }
@@ -1281,6 +1307,13 @@ window.onload = async () => {
   const fCarga = document.getElementById('c-f-carga');
   if (fAnot)  fAnot.value  = hoy;
   if (fCarga) fCarga.value = hoy;
+
+  // Registrar Service Worker para PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('✅ Service Worker registrado'))
+      .catch(err => console.log('SW error:', err));
+  }
 };
 </script>
 </body>
