@@ -405,22 +405,17 @@
     <div class="login-title">Sistema de<br>Operaciones</div>
 
     <div class="field">
-      <label>Tu rol</label>
-      <select id="login-rol">
-        <option value="">— Seleccioná tu rol —</option>
-        <option value="admin">Admin (Leo / Fernando)</option>
-        <option value="jefe">Jefe de Operaciones</option>
-        <option value="pablo">Pablo — Operario de Campo</option>
-        <option value="dte">DTE — Documentación</option>
-      </select>
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="tu@email.com" autocomplete="email">
     </div>
 
     <div class="field">
-      <label>Nombre</label>
-      <input type="text" id="login-nombre" placeholder="Tu nombre">
+      <label>Contraseña</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') iniciarSesion()">
     </div>
 
-    <button class="btn" onclick="iniciarSesion()">INGRESAR</button>
+    <button class="btn" id="btn-login" onclick="iniciarSesion()">INGRESAR</button>
     <div id="login-error" class="error-msg hidden"></div>
   </div>
 </div>
@@ -725,30 +720,58 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let usuario = null;
 
 // ════════════════════════════════════════════════════
-//  AUTENTICACIÓN (simple por rol + nombre)
+//  AUTENTICACIÓN — Supabase Auth
 // ════════════════════════════════════════════════════
-function iniciarSesion() {
-  const rol    = document.getElementById('login-rol').value;
-  const nombre = document.getElementById('login-nombre').value.trim();
-  const err    = document.getElementById('login-error');
+async function iniciarSesion() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const err      = document.getElementById('login-error');
+  const btn      = document.getElementById('btn-login');
 
-  if (!rol || !nombre) {
-    err.textContent = '⚠ Completá rol y nombre para continuar';
+  if (!email || !password) {
+    err.textContent = '⚠ Ingresá tu email y contraseña';
     err.classList.remove('hidden');
     return;
   }
 
   err.classList.add('hidden');
-  usuario = { rol, nombre };
+  btn.textContent = 'INGRESANDO...';
+  btn.disabled = true;
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+
+  btn.textContent = 'INGRESAR';
+  btn.disabled = false;
+
+  if (error) {
+    err.textContent = '❌ Email o contraseña incorrectos';
+    err.classList.remove('hidden');
+    return;
+  }
+
+  // Buscar perfil en tabla usuarios
+  const { data: perfil } = await sb.from('usuarios').select('*').eq('email', email).single();
+
+  if (!perfil) {
+    err.textContent = '❌ Usuario no configurado. Contactá al admin.';
+    err.classList.remove('hidden');
+    await sb.auth.signOut();
+    return;
+  }
+
+  usuario = { rol: perfil.rol, nombre: perfil.nombre, email: perfil.email, telegram_id: perfil.telegram_id };
   sessionStorage.setItem('darwash_user', JSON.stringify(usuario));
   montarApp();
 }
 
-function cerrarSesion() {
+async function cerrarSesion() {
+  await sb.auth.signOut();
   sessionStorage.removeItem('darwash_user');
   usuario = null;
   document.getElementById('app').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
 }
 
 // ════════════════════════════════════════════════════
@@ -1232,17 +1255,32 @@ function mostrarAlerta(containerId, tipo, mensaje) {
 // ════════════════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════════════════
-window.onload = () => {
-  const saved = sessionStorage.getItem('darwash_user');
-  if (saved) {
-    usuario = JSON.parse(saved);
-    montarApp();
+window.onload = async () => {
+  // Verificar si hay sesión activa en Supabase
+  const { data: { session } } = await sb.auth.getSession();
+
+  if (session) {
+    const saved = sessionStorage.getItem('darwash_user');
+    if (saved) {
+      usuario = JSON.parse(saved);
+      montarApp();
+    } else {
+      const { data: perfil } = await sb.from('usuarios')
+        .select('*').eq('email', session.user.email).single();
+      if (perfil) {
+        usuario = { rol: perfil.rol, nombre: perfil.nombre, email: perfil.email };
+        sessionStorage.setItem('darwash_user', JSON.stringify(usuario));
+        montarApp();
+      }
+    }
   }
-  // Fecha anotación = siempre hoy, readonly
+
+  // Setear fechas por defecto
   const hoy = new Date().toISOString().split('T')[0];
-  document.getElementById('c-f-anot').value = hoy;
-  // Fecha carga default = hoy también
-  document.getElementById('c-f-carga').value = hoy;
+  const fAnot  = document.getElementById('c-f-anot');
+  const fCarga = document.getElementById('c-f-carga');
+  if (fAnot)  fAnot.value  = hoy;
+  if (fCarga) fCarga.value = hoy;
 };
 </script>
 </body>
