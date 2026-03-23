@@ -810,18 +810,17 @@
       <!-- CREAR USUARIO -->
       <div class="card" style="margin-bottom:20px">
         <div class="card-title">▸ Nuevo Usuario</div>
+        <div class="alert info" style="margin-bottom:16px">
+          ⚠️ <strong>Paso previo:</strong> Primero creá el usuario en <strong>Supabase Dashboard → Authentication → Users → Add user</strong> con su email y contraseña. Después registralo acá para asignarle el rol.
+        </div>
         <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
           <div class="field">
             <label>Nombre *</label>
             <input type="text" id="u-nombre" placeholder="Ej: Pablo Becerra">
           </div>
           <div class="field">
-            <label>Email *</label>
+            <label>Email * (debe existir en Supabase Auth)</label>
             <input type="email" id="u-email" placeholder="pablo@email.com">
-          </div>
-          <div class="field">
-            <label>Contraseña *</label>
-            <input type="password" id="u-pass" placeholder="Mínimo 6 caracteres">
           </div>
           <div class="field">
             <label>Rol *</label>
@@ -857,6 +856,11 @@
           <div class="field">
             <label>Nombre</label>
             <input type="text" id="edit-nombre">
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="edit-email" style="opacity:.6;cursor:not-allowed" readonly>
+            <small style="color:var(--text2);font-size:10px;margin-top:4px;display:block">El email no se puede cambiar desde acá — hacelo en Supabase Auth</small>
           </div>
           <div class="field">
             <label>Rol</label>
@@ -1635,7 +1639,7 @@ async function cargarUsuarios() {
             </td>
             <td>
               <div style="display:flex;gap:6px">
-                <button onclick="abrirEditarUsuario('${u.id}','${u.nombre}','${u.rol}','${u.telegram_id || ''}')"
+                <button onclick="abrirEditarUsuario('${u.id}','${u.nombre}','${u.rol}','${u.telegram_id || ''}','${u.email}')"
                   style="font-family:var(--mono);font-size:9px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--accent2);cursor:pointer">
                   ✎ EDITAR
                 </button>
@@ -1657,30 +1661,24 @@ async function cargarUsuarios() {
 async function crearUsuario() {
   const nombre   = document.getElementById('u-nombre').value.trim();
   const email    = document.getElementById('u-email').value.trim().toLowerCase();
-  const password = document.getElementById('u-pass').value;
   const rol      = document.getElementById('u-rol').value;
   const telegram = document.getElementById('u-telegram').value.trim();
 
-  if (!nombre || !email || !password || !rol) {
-    mostrarAlerta('alert-usuarios', 'error', '⚠ Completá nombre, email, contraseña y rol');
-    return;
-  }
-  if (password.length < 6) {
-    mostrarAlerta('alert-usuarios', 'error', '⚠ La contraseña debe tener al menos 6 caracteres');
+  if (!nombre || !email || !rol) {
+    mostrarAlerta('alert-usuarios', 'error', '⚠ Completá nombre, email y rol');
     return;
   }
 
-  // 1. Crear en Supabase Auth
-  const { data: authData, error: authErr } = await sb.auth.admin
-    ? await sb.auth.signUp({ email, password })
-    : await sb.auth.signUp({ email, password });
-
-  if (authErr) {
-    mostrarAlerta('alert-usuarios', 'error', `❌ Error al crear auth: ${authErr.message}`);
+  // Verificar que no exista ya en la tabla
+  const { data: existe } = await sb.from('usuarios').select('id').eq('email', email).single();
+  if (existe) {
+    mostrarAlerta('alert-usuarios', 'error', '⚠ Ya existe un usuario con ese email');
     return;
   }
 
-  // 2. Insertar en tabla usuarios
+  // Insertar perfil en tabla usuarios
+  // NOTA: el usuario debe existir previamente en Supabase Auth
+  // (Supabase Dashboard → Authentication → Users → Add user)
   const { error: dbErr } = await sb.from('usuarios').insert([{
     nombre,
     email,
@@ -1690,23 +1688,23 @@ async function crearUsuario() {
   }]);
 
   if (dbErr) {
-    mostrarAlerta('alert-usuarios', 'error', `❌ Error al guardar usuario: ${dbErr.message}`);
+    mostrarAlerta('alert-usuarios', 'error', `❌ Error: ${dbErr.message}`);
     return;
   }
 
-  // Limpiar form
-  ['u-nombre','u-email','u-pass','u-telegram'].forEach(id => document.getElementById(id).value = '');
+  ['u-nombre','u-email','u-telegram'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('u-rol').value = '';
 
-  mostrarAlerta('alert-usuarios', 'success', `✅ Usuario ${nombre} creado correctamente`);
+  mostrarAlerta('alert-usuarios', 'success', `✅ Perfil de ${nombre} registrado correctamente`);
   cargarUsuarios();
 }
 
-function abrirEditarUsuario(id, nombre, rol, telegram) {
-  document.getElementById('edit-id').value      = id;
-  document.getElementById('edit-nombre').value  = nombre;
-  document.getElementById('edit-rol').value     = rol;
+function abrirEditarUsuario(id, nombre, rol, telegram, email) {
+  document.getElementById('edit-id').value       = id;
+  document.getElementById('edit-nombre').value   = nombre;
+  document.getElementById('edit-rol').value      = rol;
   document.getElementById('edit-telegram').value = telegram;
+  document.getElementById('edit-email').value    = email;
   document.getElementById('modal-usuario').style.display = 'flex';
 }
 
