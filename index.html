@@ -1461,6 +1461,27 @@ function renderTablaOps(ops, detallado) {
 }
 
 // ════════════════════════════════════════════════════
+//  CANTIDAD DE CARGAS
+// ════════════════════════════════════════════════════
+function cambiarCantCargas(delta) {
+  const el = document.getElementById('c-cant-cargas');
+  if (!el) return;
+  let val = parseInt(el.value) || 1;
+  val = Math.min(20, Math.max(1, val + delta));
+  el.value = val;
+  actualizarLabelCargas(val);
+}
+
+function actualizarLabelCargas(val) {
+  const label = document.getElementById('label-cant-cargas');
+  const info  = document.getElementById('info-cant-cargas');
+  if (label) label.textContent = val === 1 ? 'carga' : 'cargas';
+  if (info)  info.innerHTML = val === 1
+    ? 'Se registrará <strong style="color:var(--white)">1 operación</strong> con los datos ingresados.'
+    : `Se registrarán <strong style="color:var(--white)">${val} operaciones</strong> iguales con los datos ingresados.`;
+}
+
+// ════════════════════════════════════════════════════
 //  TELEGRAM
 // ════════════════════════════════════════════════════
 async function enviarTelegram(chatId, mensaje) {
