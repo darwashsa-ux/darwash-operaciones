@@ -885,6 +885,18 @@
     <div class="page" id="page-pablo">
       <div class="card">
         <div class="card-title">▸ Cargas Pendientes de Confirmación</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Fecha de Carga</div>
+            <input type="date" id="pablo-filtro-fecha"
+              style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none"
+              onchange="cargarPablo()">
+          </div>
+          <button class="btn small secondary" onclick="document.getElementById('pablo-filtro-fecha').value='';cargarPablo()">
+            ✕ VER TODAS
+          </button>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2);align-self:center" id="pablo-count"></div>
+        </div>
         <div id="alert-pablo"></div>
         <div id="lista-pablo"><div class="loading"><span class="spinner"></span>CARGANDO...</div></div>
       </div>
@@ -1319,11 +1331,29 @@ function limpiarFiltros() {
 //  PABLO
 // ════════════════════════════════════════════════════
 async function cargarPablo() {
-  const { data: ops } = await sb.from('operaciones').select('*').eq('estado', 'pendiente').order('f_carga');
   const el = document.getElementById('lista-pablo');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
+
+  // Setear fecha de hoy por defecto si no hay nada seleccionado
+  const fechaEl = document.getElementById('pablo-filtro-fecha');
+  if (fechaEl && !fechaEl.value) {
+    fechaEl.value = new Date().toISOString().split('T')[0];
+  }
+  const fechaFiltro = fechaEl ? fechaEl.value : null;
+
+  let query = sb.from('operaciones').select('*').eq('estado', 'pendiente').order('f_carga');
+  if (fechaFiltro) query = query.eq('f_carga', fechaFiltro);
+
+  const { data: ops } = await query;
+
+  // Actualizar contador
+  const countEl = document.getElementById('pablo-count');
+  if (countEl) countEl.textContent = ops?.length ? ops.length + ' pendiente' + (ops.length > 1 ? 's' : '') : '';
 
   if (!ops || ops.length === 0) {
-    el.innerHTML = '<div class="alert info">✓ No hay cargas pendientes de confirmación</div>';
+    el.innerHTML = fechaFiltro
+      ? '<div class="alert info">✓ No hay cargas pendientes para el ' + fechaFiltro + '<br><small style="opacity:.7">Usá "VER TODAS" para ver otros días</small></div>'
+      : '<div class="alert info">✓ No hay cargas pendientes de confirmación</div>';
     return;
   }
 
