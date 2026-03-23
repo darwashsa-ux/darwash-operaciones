@@ -69,6 +69,7 @@
 <style>
   @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
+  /* ── TEMA OSCURO (default) ─── */
   :root {
     --bg:        #0a0e14;
     --bg2:       #111720;
@@ -84,6 +85,26 @@
     --radius:    8px;
     --mono:      'IBM Plex Mono', monospace;
     --sans:      'IBM Plex Sans', sans-serif;
+    --shadow:    0 2px 8px rgba(0,0,0,.4);
+  }
+
+  /* ── TEMA CLARO ─────────────── */
+  :root.light {
+    --bg:        #f2f6f3;
+    --bg2:       #ffffff;
+    --bg3:       #e8f0eb;
+    --border:    #c8ddd0;
+    --text:      #1e3a2a;
+    --text2:     #5a8a6a;
+    --accent:    #00a878;
+    --accent2:   #0070d8;
+    --warn:      #d97000;
+    --danger:    #d43050;
+    --white:     #0f2a1a;
+    --radius:    8px;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+    --shadow:    0 2px 8px rgba(0,80,40,.1);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -94,7 +115,33 @@
     color: var(--text);
     min-height: 100vh;
     font-size: 14px;
+    transition: background .25s, color .25s;
   }
+
+  /* Ajustes tema claro */
+  :root.light .login-box,
+  :root.light .topbar,
+  :root.light .tabs,
+  :root.light .card,
+  :root.light .stat-card {
+    box-shadow: var(--shadow);
+  }
+  :root.light .ops-table tr:hover td { background: #d8ede2; }
+  :root.light .field input,
+  :root.light .field select,
+  :root.light .field textarea {
+    color: var(--white);
+  }
+  :root.light .btn { box-shadow: 0 2px 4px rgba(0,120,70,.2); }
+  :root.light .estado-pendiente   { background:#e8e8f0; color:#5a5a7a; border-color:#c0c0d8; }
+  :root.light .estado-confirmada  { background:#d0f0e0; color:#006040; border-color:#90d8b8; }
+  :root.light .estado-dte_emitido { background:#d8f0c0; color:#3a6010; border-color:#90c860; }
+  :root.light .estado-en_transito { background:#fde8c8; color:#805000; border-color:#d8a860; }
+  :root.light .estado-finalizada  { background:#d8d8f8; color:#303080; border-color:#9090d8; }
+  :root.light .alert.success { background:#c8f0dc; border-color:#60c890; color:#005030; }
+  :root.light .alert.error   { background:#fcd8dc; border-color:#f09098; color:#900020; }
+  :root.light .alert.info    { background:#d0e8fc; border-color:#80b8f0; color:#003870; }
+  :root.light #login-screen  { background: radial-gradient(ellipse at 30% 50%, #c8ede0 0%, #f2f6f3 70%); }
 
   /* ── LOGIN ────────────────────────────────────────── */
   #login-screen {
@@ -507,6 +554,9 @@
       <button id="btn-notif" onclick="activarNotificaciones()" 
         style="font-family:var(--mono);font-size:10px;color:var(--text2);background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;cursor:pointer;letter-spacing:1px"
         title="Activar notificaciones">🔔 NOTIF</button>
+      <button id="btn-tema" onclick="toggleTema()"
+        style="font-family:var(--mono);font-size:10px;color:var(--text2);background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;cursor:pointer;letter-spacing:1px;transition:all .2s"
+        title="Cambiar tema">☀️</button>
       <button class="logout-btn" onclick="cerrarSesion()">SALIR</button>
     </div>
   </div>
@@ -1742,7 +1792,29 @@ document.addEventListener('click', (e) => {
 });
 
 
+// ════════════════════════════════════════════════════
+//  TEMA CLARO / OSCURO
+// ════════════════════════════════════════════════════
+function toggleTema() {
+  const isLight = document.documentElement.classList.toggle('light');
+  localStorage.setItem('darwash_tema', isLight ? 'light' : 'dark');
+  const btn = document.getElementById('btn-tema');
+  if (btn) btn.textContent = isLight ? '🌙' : '☀️';
+}
+
+function aplicarTemaGuardado() {
+  const tema = localStorage.getItem('darwash_tema');
+  if (tema === 'light') {
+    document.documentElement.classList.add('light');
+    const btn = document.getElementById('btn-tema');
+    if (btn) btn.textContent = '🌙';
+  }
+}
+
 window.onload = async () => {
+  // Aplicar tema guardado antes de mostrar nada
+  aplicarTemaGuardado();
+
   // Verificar si hay sesión activa en Supabase
   const { data: { session } } = await sb.auth.getSession();
 
