@@ -878,21 +878,31 @@ async function cerrarSesion() {
 //  MONTAR APP SEGÚN ROL
 // ════════════════════════════════════════════════════
 const TABS_POR_ROL = {
+  // Admin: acceso total a todo
   admin: [
-    { id: 'dashboard',    label: '▸ Dashboard' },
-    { id: 'nueva-carga',  label: '+ Nueva Carga' },
-    { id: 'seguimiento',  label: '≡ Seguimiento' },
+    { id: 'dashboard',   label: '▸ Dashboard' },
+    { id: 'nueva-carga', label: '+ Nueva Carga' },
+    { id: 'seguimiento', label: '≡ Seguimiento' },
+    { id: 'pablo',       label: '✓ Confirmaciones' },
+    { id: 'dte',         label: '📄 DTE' },
   ],
+  // Jefe: carga operaciones + ve todo pero no confirma ni emite DTE
   jefe: [
-    { id: 'nueva-carga',  label: '+ Nueva Carga' },
-    { id: 'seguimiento',  label: '≡ Seguimiento' },
+    { id: 'dashboard',   label: '▸ Dashboard' },
+    { id: 'nueva-carga', label: '+ Nueva Carga' },
+    { id: 'seguimiento', label: '≡ Seguimiento' },
   ],
+  // Pablo: confirma cargas + ve dashboard y seguimiento
   pablo: [
-    { id: 'pablo',        label: '✓ Mis Cargas' },
+    { id: 'dashboard',   label: '▸ Dashboard' },
+    { id: 'pablo',       label: '✓ Mis Cargas' },
+    { id: 'seguimiento', label: '≡ Seguimiento' },
   ],
+  // Fernando (DTE): emite DTEs + ve dashboard y seguimiento
   dte: [
-    { id: 'dte',          label: '📄 Emitir DTE' },
-    { id: 'seguimiento',  label: '≡ Seguimiento' },
+    { id: 'dashboard',   label: '▸ Dashboard' },
+    { id: 'dte',         label: '📄 Emitir DTE' },
+    { id: 'seguimiento', label: '≡ Seguimiento' },
   ],
 };
 
@@ -1212,55 +1222,90 @@ async function confirmarPablo(opId, numero) {
 //  DTE
 // ════════════════════════════════════════════════════
 async function cargarDTE() {
-  const { data: ops } = await sb.from('operaciones').select('*, seguimiento(*)').eq('estado', 'confirmada').order('f_carga');
   const el = document.getElementById('lista-dte');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
+  const { data: ops } = await sb.from('operaciones')
+    .select('*, seguimiento(nro_dte, kg_pie, cant_real, cat_real)')
+    .eq('estado', 'confirmada')
+    .order('f_carga', { ascending: true });
 
   if (!ops || ops.length === 0) {
     el.innerHTML = '<div class="alert info">✓ No hay operaciones pendientes de DTE</div>';
     return;
   }
 
-  el.innerHTML = ops.map(op => `
+  const hoy = new Date().toISOString().split('T')[0];
+
+  el.innerHTML = ops.map(op => {
+    const seg     = op.seguimiento?.[0] || {};
+    const cabezas = seg.cant_real || op.cant || '?';
+    const cat     = seg.cat_real  || op.cat  || '';
+    const kgPie   = seg.kg_pie ? Number(seg.kg_pie).toLocaleString('es-AR') + ' kg' : '—';
+    return `
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px">
         <div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:6px">#${op.numero} — ${op.f_carga}</div>
-          <div style="font-size:15px;font-weight:600;color:var(--white);margin-bottom:4px">${op.titular} | ${op.cant || '?'} ${op.cat || ''} → ${op.comprador || '?'}</div>
-          <div style="color:var(--text2)">${op.planta || '?'} · ${op.destino || '?'}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:6px">
+            #${op.numero} — ${op.f_carga}
+            <span style="margin-left:8px;color:var(--accent2);background:var(--bg3);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">${op.por}</span>
+          </div>
+          <div style="font-size:15px;font-weight:600;color:var(--white);margin-bottom:4px">${op.titular}</div>
+          <div style="color:var(--text2);margin-bottom:4px">
+            ${cabezas} <strong style="color:var(--white)">${cat}</strong> ${op.raza || ''}
+            &nbsp;·&nbsp; <strong style="color:var(--white)">${op.comprador}</strong> ${op.planta ? '('+op.planta+')' : ''}
+          </div>
+          <div style="color:var(--text2);font-size:12px">
+            Destino: <strong style="color:var(--white)">${op.destino || '—'}</strong>
+            &nbsp;·&nbsp; Kg pie: <strong style="color:var(--accent)">${kgPie}</strong>
+            ${op.acuerdo_comp ? '&nbsp;·&nbsp; Acuerdo: <strong style="color:var(--white)">'+op.acuerdo_comp+'</strong>' : ''}
+          </div>
         </div>
-        <button class="btn small" onclick="emitirDTE(${op.id}, ${op.numero})">📄 EMITIR DTE</button>
+        <button class="btn small" onclick="emitirDTE(${op.id}, ${op.numero})" style="white-space:nowrap">📄 EMITIR DTE</button>
       </div>
       <div class="sep"></div>
-      <div class="field" style="max-width:300px">
-        <label>N° DTE</label>
-        <input type="text" id="dte-nro-${op.id}" placeholder="Ej: 031189922-8">
+      <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+        <div class="field">
+          <label>N° DTE *</label>
+          <input type="text" id="dte-nro-${op.id}" placeholder="Ej: 031189922-8">
+        </div>
+        <div class="field">
+          <label>Fecha DTE</label>
+          <input type="date" id="dte-fecha-${op.id}" value="${hoy}">
+        </div>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 async function emitirDTE(opId, numero) {
-  const nroDTE = document.getElementById(`dte-nro-${opId}`).value.trim();
+  const nroDTE  = document.getElementById(`dte-nro-${opId}`).value.trim();
+  const fechaDTE = document.getElementById(`dte-fecha-${opId}`)?.value || new Date().toISOString().split('T')[0];
+
   if (!nroDTE) {
     mostrarAlerta('alert-dte', 'error', '⚠ Ingresá el número de DTE');
     return;
   }
 
+  // Estado → en_transito
   await sb.from('operaciones').update({ estado: 'en_transito', updated_at: new Date() }).eq('id', opId);
+
+  // Guardar DTE en seguimiento
   await sb.from('seguimiento').update({
     nro_dte:    nroDTE,
-    f_dte:      new Date().toISOString(),
+    f_dte:      fechaDTE,
     updated_at: new Date()
   }).eq('operacion_id', opId);
 
+  // Telegram
   let msg  = `📄 *DTE EMITIDO — Op #${numero}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
-  msg     += `📝 N° DTE: *${nroDTE}*\n`;
+  msg     += `🔢 N° DTE: *${nroDTE}*\n`;
+  msg     += `📅 Fecha: *${fechaDTE}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
-  msg     += `⏳ Hacienda en tránsito al frigorífico.`;
+  msg     += `🚚 Hacienda en tránsito al frigorífico.`;
   for (const id of ADMINS_TG) await enviarTelegram(id, msg);
 
-  mostrarAlerta('alert-dte', 'success', `✅ DTE ${nroDTE} registrado para Op #${numero}`);
+  mostrarAlerta('alert-dte', 'success', `✅ DTE ${nroDTE} emitido — Op #${numero} en tránsito`);
   cargarDTE();
 }
 
@@ -1333,7 +1378,7 @@ function renderTablaOps(ops, detallado) {
       <td class="col-estado"><span class="estado-badge estado-${op.estado}">${op.estado}</span></td>
       <td class="col-dte" style="font-family:var(--mono);font-size:11px;color:var(--accent)">${op.seguimiento?.[0]?.nro_dte || '—'}</td>
       <td class="col-kg" style="font-family:var(--mono);font-size:12px">${op.seguimiento?.[0]?.kg_pie ? Number(op.seguimiento[0].kg_pie).toLocaleString('es-AR') : '—'}</td>
-      <td><button onclick="duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer" title="Duplicar operación">⧉ DUP</button></td>
+      <td>${['admin','jefe'].includes(usuario?.rol) ? `<button onclick="duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer" title="Duplicar operación">⧉ DUP</button>` : ''}</td>
     </tr>`).join('');
 
   return `<div style="width:100%">
@@ -1362,7 +1407,7 @@ function armarMensaje(op) {
   msg     += `📅 *${op.f_carga}* | Titular: *${op.titular}*\n`;
   msg     += `🔢 *${op.cant || '?'} ${op.cat || ''} ${op.raza || ''}*\n`;
   msg     += `🏭 *${op.comprador}* (${op.planta || '?'}) · ${op.destino || '?'}\n`;
-  if (op.acuerdo_comp) msg += `📋 Acuerdo comp: *${op.acuerdo_comp}* | $ *${op.vta || '?'}* | Plazo: *${op.cas || '—'}*\n`;
+  if (op.acuerdo_comp) msg += `📋 Acuerdo comp: *${op.acuerdo_comp}* | $ *${op.vta || '?'}* | Plazo: *${op.plazo_cobro || '—'}*\n`;
   if (op.acuerdo_vend) msg += `📋 Acuerdo vend: *${op.acuerdo_vend}* | $ *${op.liq_vta || '?'}*\n`;
   if (op.observaciones) msg += `📝 ${op.observaciones}\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
