@@ -898,7 +898,54 @@
           <div style="font-family:var(--mono);font-size:11px;color:var(--text2);align-self:center" id="pablo-count"></div>
         </div>
         <div id="alert-pablo"></div>
+
+        <!-- CARGA EXCEPCIONAL -->
+        <div id="form-pablo-nueva" style="display:none;background:var(--bg3);border:1px solid var(--accent2);border-radius:8px;padding:16px;margin-bottom:16px">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--accent2);text-transform:uppercase;margin-bottom:14px">⚡ Carga Excepcional</div>
+          <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:12px">
+            <div class="field">
+              <label>Vendedor *</label>
+              <input type="text" id="ep-titular" placeholder="Nombre del vendedor">
+            </div>
+            <div class="field">
+              <label>Comprador *</label>
+              <input type="text" id="ep-comprador" placeholder="Ej: COTO">
+            </div>
+            <div class="field">
+              <label>Planta</label>
+              <input type="text" id="ep-planta" placeholder="Ej: G CATAN">
+            </div>
+            <div class="field">
+              <label>Categoría *</label>
+              <select id="ep-cat">
+                <option value="">—</option>
+                <option>VQ</option><option>VA</option><option>NOV</option>
+                <option>TM</option><option>TH</option><option>TORO</option><option>MEJ</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Cantidad *</label>
+              <input type="number" id="ep-cant" placeholder="Cabezas">
+            </div>
+            <div class="field">
+              <label>Fecha Carga *</label>
+              <input type="date" id="ep-fecha">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn small" onclick="guardarCargaExcepcional()">✓ REGISTRAR</button>
+            <button class="btn small secondary" onclick="toggleFormExcepcional(false)">CANCELAR</button>
+          </div>
+        </div>
+
         <div id="lista-pablo"><div class="loading"><span class="spinner"></span>CARGANDO...</div></div>
+
+        <!-- Botón carga excepcional flotante -->
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
+          <button class="btn secondary small" onclick="toggleFormExcepcional(true)" id="btn-nueva-excepcional">
+            + CARGA EXCEPCIONAL
+          </button>
+        </div>
       </div>
     </div>
 
@@ -969,6 +1016,88 @@
     </div>
 
   </div><!-- /main -->
+
+  <!-- MODAL EDITAR OPERACIÓN (solo jefe/admin, solo pendientes) -->
+  <div class="modal-overlay" id="modal-editar-op" onclick="if(event.target===this)cerrarModalEditar()">
+    <div class="modal-detalle" style="max-width:600px">
+      <div class="modal-header">
+        <div class="modal-header-top">
+          <div>
+            <div class="modal-op-num" id="edit-op-num"></div>
+            <div style="font-size:15px;font-weight:600;color:var(--white)">Editar Operación</div>
+          </div>
+          <button class="modal-close" onclick="cerrarModalEditar()">&#x2715;</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit-op-id">
+        <div id="alert-edit-op"></div>
+        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px">
+          <div class="field"><label>Fecha Carga</label><input type="date" id="eo-fcarga"></div>
+          <div class="field"><label>Consignataria</label>
+            <select id="eo-por">
+              <option value="DRW">DRW — Darwash SA</option>
+              <option value="BT">BT — Bulltrade</option>
+            </select>
+          </div>
+          <div class="field"><label>Vendedor</label><input type="text" id="eo-titular"></div>
+          <div class="field"><label>Operador</label>
+            <select id="eo-operador">
+              <option value="">—</option>
+              <option value="ML - Miguel Lavaselli">ML — Miguel Lavaselli</option>
+              <option value="BP - Pablo Becerra">BP — Pablo Becerra</option>
+              <option value="AI - Alfredo Irico">AI — Alfredo Irico</option>
+              <option value="DRW - Darwash">DRW — Darwash</option>
+              <option value="BT - Bulltrade">BT — Bulltrade</option>
+            </select>
+          </div>
+          <div class="field"><label>Comprador</label><input type="text" id="eo-comprador"></div>
+          <div class="field"><label>Planta</label><input type="text" id="eo-planta"></div>
+          <div class="field"><label>Categoría</label>
+            <select id="eo-cat">
+              <option value="">—</option>
+              <option>VQ</option><option>VA</option><option>NOV</option>
+              <option>TM</option><option>TH</option><option>TORO</option><option>MEJ</option>
+            </select>
+          </div>
+          <div class="field"><label>Raza</label>
+            <select id="eo-raza"><option value="">—</option><option>MZO</option><option>HA</option></select>
+          </div>
+          <div class="field"><label>Cantidad</label><input type="number" id="eo-cant"></div>
+          <div class="field"><label>Kg estimados</label><input type="number" id="eo-kgs"></div>
+          <div class="field"><label>Destino</label>
+            <select id="eo-destino"><option value="">—</option><option value="Cons">Cons</option><option value="UE">UE</option></select>
+          </div>
+          <div class="field"><label>Acuerdo Comp.</label>
+            <select id="eo-acu-comp"><option value="">—</option><option>KG PIE</option><option>KG CARNE</option><option>X CBZ</option></select>
+          </div>
+          <div class="field"><label>$ Venta</label><input type="number" id="eo-vta"></div>
+          <div class="field"><label>Plazo Cobro</label>
+            <select id="eo-plazo-cobro">
+              <option value="">—</option><option>Contado</option>
+              <option>10 días</option><option>15 días</option><option>21 días</option><option>30 días</option><option>30-60</option><option>30-60-90</option>
+            </select>
+          </div>
+          <div class="field"><label>Acuerdo Vend.</label>
+            <select id="eo-acu-vend"><option value="">—</option><option>KG PIE</option><option>KG CARNE</option><option>X CBZ</option></select>
+          </div>
+          <div class="field"><label>$ Liquidación</label><input type="number" id="eo-liq"></div>
+          <div class="field"><label>Plazo Pago</label>
+            <select id="eo-plazo-pago">
+              <option value="">—</option><option>Contado</option>
+              <option>10 días</option><option>15 días</option><option>21 días</option><option>30 días</option><option>30-60</option><option>30-60-90</option>
+            </select>
+          </div>
+          <div class="field full"><label>Observaciones</label><input type="text" id="eo-obs"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:20px">
+          <button class="btn" style="flex:2" onclick="guardarEdicionOp()">✓ GUARDAR CAMBIOS</button>
+          <button class="btn danger" style="flex:1" onclick="eliminarOperacion()">✕ ELIMINAR</button>
+          <button class="btn secondary" style="flex:1" onclick="cerrarModalEditar()">CANCELAR</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL DETALLE OPERACIÓN -->
   <div class="modal-overlay" id="modal-detalle" onclick="if(event.target===this)cerrarModalDetalle()">
@@ -1593,7 +1722,10 @@ function renderTablaOps(ops, detallado) {
       <td class="col-estado"><span class="estado-badge estado-${op.estado}">${op.estado}</span></td>
       <td class="col-dte" style="font-family:var(--mono);font-size:11px;color:var(--accent)">${op.seguimiento?.[0]?.nro_dte || '—'}</td>
       <td class="col-kg" style="font-family:var(--mono);font-size:12px">${op.seguimiento?.[0]?.kg_pie ? Number(op.seguimiento[0].kg_pie).toLocaleString('es-AR') : '—'}</td>
-      <td>${['admin','jefe'].includes(usuario?.rol) ? `<button onclick="duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer" title="Duplicar operación">⧉ DUP</button>` : ''}</td>
+      <td style="white-space:nowrap">
+        ${['admin','jefe'].includes(usuario?.rol) ? `<button onclick="event.stopPropagation();duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer;margin-right:4px" title="Duplicar">⧉</button>` : ''}
+        ${['admin','jefe'].includes(usuario?.rol) && op.estado === 'pendiente' ? `<button onclick="event.stopPropagation();abrirEditarOp(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--accent2);cursor:pointer" title="Editar">✎</button>` : ''}
+      </td>
     </tr>`).join('');
 
   return `<div style="width:100%">
@@ -2085,6 +2217,174 @@ function renderModalHistorial(op, seg) {
         '</div>';
     }).join('') +
     '</div>';
+}
+
+
+// ════════════════════════════════════════════════════
+//  CARGA EXCEPCIONAL (Pablo)
+// ════════════════════════════════════════════════════
+function toggleFormExcepcional(show) {
+  document.getElementById('form-pablo-nueva').style.display = show ? 'block' : 'none';
+  document.getElementById('btn-nueva-excepcional').style.display = show ? 'none' : 'inline-block';
+  if (show) {
+    const hoy = new Date().toISOString().split('T')[0];
+    document.getElementById('ep-fecha').value = hoy;
+    document.getElementById('ep-titular').focus();
+  }
+}
+
+async function guardarCargaExcepcional() {
+  const titular   = document.getElementById('ep-titular').value.trim();
+  const comprador = document.getElementById('ep-comprador').value.trim();
+  const cat       = document.getElementById('ep-cat').value;
+  const cant      = document.getElementById('ep-cant').value;
+  const planta    = document.getElementById('ep-planta').value.trim();
+  const fCarga    = document.getElementById('ep-fecha').value;
+
+  if (!titular || !comprador || !cat || !cant || !fCarga) {
+    mostrarAlerta('alert-pablo', 'error', '⚠ Completá vendedor, comprador, categoría, cantidad y fecha');
+    return;
+  }
+
+  const { data: maxData } = await sb.from('operaciones').select('numero').order('numero', { ascending: false }).limit(1);
+  const nextNum = maxData && maxData.length > 0 ? maxData[0].numero + 1 : 1;
+
+  const { data, error } = await sb.from('operaciones').insert([{
+    numero:       nextNum,
+    f_anotacion:  new Date().toISOString().split('T')[0],
+    f_carga:      fCarga,
+    titular,
+    comprador,
+    planta:       planta || null,
+    cat,
+    cant:         parseInt(cant),
+    estado:       'pendiente',
+    por:          'DRW',
+    notificada:   true,
+  }]).select();
+
+  if (error) {
+    mostrarAlerta('alert-pablo', 'error', '❌ Error: ' + error.message);
+    return;
+  }
+
+  await sb.from('seguimiento').insert([{ operacion_id: data[0].id }]);
+
+  // Telegram
+  let msg  = '⚡ *CARGA EXCEPCIONAL — #' + nextNum + '*\n';
+  msg     += '━━━━━━━━━━━━━━━━━━\n';
+  msg     += '📅 *' + fCarga + '* | Cargada por: *Pablo*\n';
+  msg     += '🐄 *' + cant + ' ' + cat + '*\n';
+  msg     += '🏭 *' + comprador + (planta ? ' ('+planta+')' : '') + '*\n';
+  msg     += '━━━━━━━━━━━━━━━━━━\n';
+  msg     += '⚠️ Carga registrada excepcionalmente por Pablo.';
+  for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+
+  toggleFormExcepcional(false);
+  ['ep-titular','ep-comprador','ep-planta','ep-cant'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('ep-cat').value = '';
+
+  mostrarAlerta('alert-pablo', 'success', '✅ Carga excepcional #' + nextNum + ' registrada');
+  cargarPablo();
+}
+
+// ════════════════════════════════════════════════════
+//  EDITAR / ELIMINAR OPERACIÓN (jefe/admin, solo pendientes)
+// ════════════════════════════════════════════════════
+async function abrirEditarOp(opId) {
+  const { data: op } = await sb.from('operaciones').select('*').eq('id', opId).single();
+  if (!op) return;
+  if (op.estado !== 'pendiente') {
+    alert('Solo se pueden editar operaciones en estado PENDIENTE');
+    return;
+  }
+
+  document.getElementById('edit-op-id').value = opId;
+  document.getElementById('edit-op-num').textContent = '#' + op.numero + ' — ' + op.f_carga;
+
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+  setVal('eo-fcarga',     op.f_carga);
+  setVal('eo-por',        op.por);
+  setVal('eo-titular',    op.titular);
+  setVal('eo-operador',   op.operador);
+  setVal('eo-comprador',  op.comprador);
+  setVal('eo-planta',     op.planta);
+  setVal('eo-cat',        op.cat);
+  setVal('eo-raza',       op.raza);
+  setVal('eo-cant',       op.cant);
+  setVal('eo-kgs',        op.kgs);
+  setVal('eo-destino',    op.destino);
+  setVal('eo-acu-comp',   op.acuerdo_comp);
+  setVal('eo-vta',        op.vta);
+  setVal('eo-plazo-cobro',op.plazo_cobro);
+  setVal('eo-acu-vend',   op.acuerdo_vend);
+  setVal('eo-liq',        op.liq_vta);
+  setVal('eo-plazo-pago', op.plazo_pago);
+  setVal('eo-obs',        op.observaciones);
+
+  document.getElementById('modal-editar-op').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarModalEditar() {
+  document.getElementById('modal-editar-op').classList.remove('open');
+  document.body.style.overflow = '';
+  document.getElementById('alert-edit-op').innerHTML = '';
+}
+
+async function guardarEdicionOp() {
+  const opId = document.getElementById('edit-op-id').value;
+  const getVal = (id) => document.getElementById(id)?.value || null;
+
+  const { error } = await sb.from('operaciones').update({
+    f_carga:      getVal('eo-fcarga'),
+    por:          getVal('eo-por'),
+    titular:      getVal('eo-titular'),
+    operador:     getVal('eo-operador'),
+    comprador:    getVal('eo-comprador'),
+    planta:       getVal('eo-planta'),
+    cat:          getVal('eo-cat'),
+    raza:         getVal('eo-raza'),
+    cant:         parseInt(getVal('eo-cant')) || null,
+    kgs:          parseFloat(getVal('eo-kgs')) || null,
+    destino:      getVal('eo-destino'),
+    acuerdo_comp: getVal('eo-acu-comp'),
+    vta:          parseFloat(getVal('eo-vta')) || null,
+    plazo_cobro:  getVal('eo-plazo-cobro'),
+    acuerdo_vend: getVal('eo-acu-vend'),
+    liq_vta:      parseFloat(getVal('eo-liq')) || null,
+    plazo_pago:   getVal('eo-plazo-pago'),
+    observaciones:getVal('eo-obs'),
+    updated_at:   new Date()
+  }).eq('id', opId);
+
+  if (error) {
+    document.getElementById('alert-edit-op').innerHTML = '<div class="alert error">❌ ' + error.message + '</div>';
+    return;
+  }
+
+  cerrarModalEditar();
+  mostrarAlerta('alert-carga', 'success', '✅ Operación actualizada correctamente');
+  cargarSeguimiento();
+}
+
+async function eliminarOperacion() {
+  const opId = document.getElementById('edit-op-id').value;
+  const num  = document.getElementById('edit-op-num').textContent;
+
+  if (!confirm('¿Eliminár definitivamente la operación ' + num + '?\nEsta acción no se puede deshacer.')) return;
+
+  await sb.from('seguimiento').delete().eq('operacion_id', opId);
+  const { error } = await sb.from('operaciones').delete().eq('id', opId);
+
+  if (error) {
+    document.getElementById('alert-edit-op').innerHTML = '<div class="alert error">❌ ' + error.message + '</div>';
+    return;
+  }
+
+  cerrarModalEditar();
+  mostrarAlerta('alert-carga', 'success', '✅ Operación eliminada');
+  cargarSeguimiento();
 }
 
 function aplicarTemaGuardado() {
