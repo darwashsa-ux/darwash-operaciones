@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DARWASH — Confirmar Arribo</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+  :root {
+    --bg: #0a0e14; --bg2: #111720; --bg3: #1a2232;
+    --border: #1e2d42; --text: #c8d8e8; --text2: #6a8aaa;
+    --accent: #00c896; --accent2: #0088ff; --warn: #ff8c00;
+    --danger: #ff3d5a; --white: #eef4ff;
+    --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .container {
+    max-width: 500px; margin: 0 auto; padding: 24px 16px;
+  }
+  .logo {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 4px;
+    color: var(--accent); text-transform: uppercase; margin-bottom: 4px;
+  }
+  .title {
+    font-size: 22px; font-weight: 600; color: var(--white);
+    margin-bottom: 24px; line-height: 1.3;
+  }
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px; margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 3px;
+    color: var(--accent); text-transform: uppercase; margin-bottom: 14px;
+  }
+  .info-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { color: var(--text2); font-family: var(--mono); font-size: 10px; letter-spacing: 1px; }
+  .info-value { color: var(--white); font-weight: 500; }
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block; font-family: var(--mono); font-size: 10px;
+    letter-spacing: 2px; color: var(--text2); text-transform: uppercase; margin-bottom: 6px;
+  }
+  .field input, .field textarea {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--white); padding: 10px 14px;
+    font-family: var(--sans); font-size: 14px; outline: none;
+    transition: border-color .2s;
+  }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); }
+  .field textarea { resize: vertical; min-height: 80px; }
+
+  /* Zona de foto */
+  .foto-zone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 32px 20px; text-align: center; cursor: pointer;
+    transition: all .2s; background: var(--bg3);
+  }
+  .foto-zone:hover { border-color: var(--accent); background: #0d2a1a; }
+  .foto-zone.has-foto { border-color: var(--accent); border-style: solid; background: #0d2a1a; }
+  .foto-zone input { display: none; }
+  .foto-icon { font-size: 40px; margin-bottom: 10px; }
+  .foto-label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+    color: var(--text2); text-transform: uppercase;
+  }
+  .foto-preview {
+    width: 100%; max-height: 200px; object-fit: cover;
+    border-radius: 6px; margin-top: 10px; display: none;
+  }
+
+  .btn {
+    width: 100%; padding: 14px; background: var(--accent); color: #000;
+    border: none; border-radius: 8px; font-family: var(--mono); font-size: 12px;
+    font-weight: 600; letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; transition: opacity .2s; margin-top: 8px;
+  }
+  .btn:hover { opacity: .85; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .alert {
+    padding: 14px 16px; border-radius: 8px; font-family: var(--mono);
+    font-size: 11px; margin-bottom: 16px; line-height: 1.5;
+  }
+  .alert.success { background: #0d2a1a; border: 1px solid #1a4d30; color: var(--accent); }
+  .alert.error   { background: #2a0d14; border: 1px solid #4d1a24; color: var(--danger); }
+  .alert.info    { background: #0d1a2a; border: 1px solid #1a304d; color: var(--accent2); }
+
+  .loading {
+    text-align: center; padding: 60px 20px;
+    font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: 2px;
+  }
+  .spinner {
+    display: inline-block; width: 20px; height: 20px;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    border-radius: 50%; animation: spin .6s linear infinite;
+    margin-right: 10px; vertical-align: middle;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .finalizado {
+    text-align: center; padding: 40px 20px;
+  }
+  .finalizado .check { font-size: 60px; margin-bottom: 16px; }
+  .finalizado h2 { color: var(--accent); font-size: 22px; margin-bottom: 8px; }
+  .finalizado p { color: var(--text2); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="logo">DARWASH SA · BULLTRADE</div>
+  <div class="title">Confirmación<br>de Arribo</div>
+
+  <div id="alert-arribo"></div>
+  <div id="content">
+    <div class="loading"><span class="spinner"></span>CARGANDO...</div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL  = 'https://qkrrumlbvspbxjoxvxho.supabase.co';
+const SUPABASE_KEY  = 'sb_publishable_ZKjsxf9lkh4tgkhAayDvbA_6DOE7E6d';
+const TELEGRAM_TOKEN = '8787061720:AAHmrS1EQhj5qqePs5juIDGIzbIX2oxaYAQ';
+const ADMINS_TG     = ['1172465951', '8746958954'];
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let operacionData = null;
+let seguimientoData = null;
+let fotoFile = null;
+
+function getToken() {
+  return new URLSearchParams(window.location.search).get('token');
+}
+
+async function cargarOperacion() {
+  const token = getToken();
+  if (!token) {
+    mostrarError('Link inválido — no se encontró el token de la operación.');
+    return;
+  }
+
+  const { data: seg } = await sb
+    .from('seguimiento')
+    .select('*, operaciones(*)')
+    .eq('arribo_token', token)
+    .single();
+
+  if (!seg) {
+    mostrarError('No se encontró la operación. Verificá el link.');
+    return;
+  }
+
+  seguimientoData = seg;
+  operacionData   = seg.operaciones;
+
+  // Si ya fue confirmado el arribo
+  if (seg.f_arribo) {
+    mostrarFinalizado();
+    return;
+  }
+
+  renderFormulario();
+}
+
+function renderFormulario() {
+  const op  = operacionData;
+  const seg = seguimientoData;
+
+  document.getElementById('content').innerHTML = `
+    <div class="card">
+      <div class="card-title">▸ Datos de la Operación</div>
+      <div class="info-row">
+        <span class="info-label">N° Operación</span>
+        <span class="info-value">#${op.numero}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Fecha carga</span>
+        <span class="info-value">${op.f_carga}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Vendedor</span>
+        <span class="info-value">${op.titular}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Hacienda</span>
+        <span class="info-value">${seg.cant_real || op.cant || '?'} ${seg.cat_real || op.cat || ''} ${op.raza || ''}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Destino</span>
+        <span class="info-value">${op.comprador} ${op.planta ? '('+op.planta+')' : ''}</span>
+      </div>
+      ${seg.transportista ? `
+      <div class="info-row">
+        <span class="info-label">Transporte</span>
+        <span class="info-value">${seg.transportista}</span>
+      </div>` : ''}
+      ${seg.chofer ? `
+      <div class="info-row">
+        <span class="info-label">Chofer</span>
+        <span class="info-value">${seg.chofer}</span>
+      </div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="card-title">▸ Confirmar Arribo al Frigorífico</div>
+
+      <div class="field">
+        <label>📷 Foto del documento de descarga *</label>
+        <div class="foto-zone" id="foto-zone" onclick="document.getElementById('foto-input').click()">
+          <input type="file" id="foto-input" accept="image/*" capture="environment" onchange="seleccionarFoto(this)">
+          <div class="foto-icon">📄</div>
+          <div class="foto-label">Tocá para sacar foto o elegir archivo</div>
+          <img id="foto-preview" class="foto-preview" alt="Preview">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Observaciones (opcional)</label>
+        <textarea id="obs-descarga" placeholder="Ej: Descarga completa sin novedades..."></textarea>
+      </div>
+
+      <button class="btn" id="btn-confirmar" onclick="confirmarArribo()">
+        ✓ CONFIRMAR ARRIBO
+      </button>
+    </div>
+  `;
+}
+
+function seleccionarFoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  fotoFile = file;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const preview = document.getElementById('foto-preview');
+    const zone    = document.getElementById('foto-zone');
+    preview.src   = e.target.result;
+    preview.style.display = 'block';
+    zone.classList.add('has-foto');
+    zone.querySelector('.foto-icon').textContent = '✅';
+    zone.querySelector('.foto-label').textContent = file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function confirmarArribo() {
+  if (!fotoFile) {
+    mostrarAlerta('error', '⚠ Necesitás subir la foto del documento de descarga');
+    return;
+  }
+
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled = true;
+  btn.textContent = '⏳ REGISTRANDO...';
+
+  try {
+    // 1. Subir foto a Supabase Storage
+    const ext      = fotoFile.name.split('.').pop();
+    const fileName = `${operacionData.id}/descarga/foto_descarga_${Date.now()}.${ext}`;
+
+    const { data: uploadData, error: uploadErr } = await sb.storage
+      .from('operaciones')
+      .upload(fileName, fotoFile, { upsert: true });
+
+    if (uploadErr) throw new Error('Error subiendo foto: ' + uploadErr.message);
+
+    // 2. Obtener URL pública
+    const { data: urlData } = sb.storage.from('operaciones').getPublicUrl(fileName);
+    const fotoUrl = urlData.publicUrl;
+
+    // 3. Actualizar seguimiento
+    const obs = document.getElementById('obs-descarga').value.trim();
+    await sb.from('seguimiento').update({
+      f_arribo:          new Date().toISOString(),
+      foto_descarga_url: fotoUrl,
+      obs_descarga:      obs || null,
+      updated_at:        new Date()
+    }).eq('arribo_token', getToken());
+
+    // 4. Actualizar estado operación → finalizada
+    await sb.from('operaciones')
+      .update({ estado: 'finalizada', updated_at: new Date() })
+      .eq('id', operacionData.id);
+
+    // 5. Telegram
+    let msg  = `🏁 *ARRIBO CONFIRMADO — Op #${operacionData.numero}*\n`;
+    msg     += `━━━━━━━━━━━━━━━━━━\n`;
+    msg     += `🚛 ${seguimientoData.transportista || '?'} · ${seguimientoData.chofer || '?'}\n`;
+    msg     += `🏭 ${operacionData.comprador} ${operacionData.planta ? '('+operacionData.planta+')' : ''}\n`;
+    if (obs) msg += `📝 ${obs}\n`;
+    msg     += `━━━━━━━━━━━━━━━━━━\n`;
+    msg     += `✅ Hacienda entregada. Op finalizada.`;
+    for (const id of ADMINS_TG) {
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: id, text: msg, parse_mode: 'Markdown' })
+      });
+    }
+
+    mostrarFinalizado();
+
+  } catch(e) {
+    mostrarAlerta('error', `❌ Error: ${e.message}`);
+    btn.disabled = false;
+    btn.textContent = '✓ CONFIRMAR ARRIBO';
+  }
+}
+
+function mostrarFinalizado() {
+  document.getElementById('content').innerHTML = `
+    <div class="finalizado">
+      <div class="check">✅</div>
+      <h2>¡Arribo confirmado!</h2>
+      <p>La hacienda fue registrada como entregada.<br>Podés cerrar esta página.</p>
+    </div>`;
+}
+
+function mostrarError(msg) {
+  document.getElementById('content').innerHTML = `
+    <div class="alert error">❌ ${msg}</div>`;
+}
+
+function mostrarAlerta(tipo, msg) {
+  const el = document.getElementById('alert-arribo');
+  el.innerHTML = `<div class="alert ${tipo}">${msg}</div>`;
+  setTimeout(() => el.innerHTML = '', 5000);
+}
+
+// Iniciar
+cargarOperacion();
+</script>
+</body>
+</html>
