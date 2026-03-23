@@ -802,6 +802,83 @@
       </div>
     </div>
 
+
+    <!-- ── PAGE: USUARIOS ── -->
+    <div class="page" id="page-usuarios">
+      <div id="alert-usuarios"></div>
+
+      <!-- CREAR USUARIO -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title">▸ Nuevo Usuario</div>
+        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
+          <div class="field">
+            <label>Nombre *</label>
+            <input type="text" id="u-nombre" placeholder="Ej: Pablo Becerra">
+          </div>
+          <div class="field">
+            <label>Email *</label>
+            <input type="email" id="u-email" placeholder="pablo@email.com">
+          </div>
+          <div class="field">
+            <label>Contraseña *</label>
+            <input type="password" id="u-pass" placeholder="Mínimo 6 caracteres">
+          </div>
+          <div class="field">
+            <label>Rol *</label>
+            <select id="u-rol">
+              <option value="">— Seleccioná —</option>
+              <option value="admin">admin — Administrador total</option>
+              <option value="jefe">jefe — Carga operaciones</option>
+              <option value="pablo">pablo — Confirma cargas</option>
+              <option value="dte">dte — Emite DTE</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Telegram ID (opcional)</label>
+            <input type="text" id="u-telegram" placeholder="Ej: 1172465951">
+          </div>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn" style="width:auto;padding:10px 24px" onclick="crearUsuario()">+ CREAR USUARIO</button>
+        </div>
+      </div>
+
+      <!-- LISTA USUARIOS -->
+      <div class="card">
+        <div class="card-title">▸ Usuarios del Sistema</div>
+        <div id="lista-usuarios"><div class="loading"><span class="spinner"></span>CARGANDO...</div></div>
+      </div>
+
+      <!-- MODAL EDITAR -->
+      <div id="modal-usuario" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:999;align-items:center;justify-content:center">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:32px;width:100%;max-width:480px;margin:20px">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--accent);margin-bottom:20px">EDITAR USUARIO</div>
+          <input type="hidden" id="edit-id">
+          <div class="field">
+            <label>Nombre</label>
+            <input type="text" id="edit-nombre">
+          </div>
+          <div class="field">
+            <label>Rol</label>
+            <select id="edit-rol">
+              <option value="admin">admin — Administrador total</option>
+              <option value="jefe">jefe — Carga operaciones</option>
+              <option value="pablo">pablo — Confirma cargas</option>
+              <option value="dte">dte — Emite DTE</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Telegram ID</label>
+            <input type="text" id="edit-telegram" placeholder="Opcional">
+          </div>
+          <div style="display:flex;gap:10px;margin-top:20px">
+            <button class="btn" style="flex:1" onclick="guardarEdicionUsuario()">GUARDAR</button>
+            <button class="btn secondary" style="flex:1" onclick="cerrarModalUsuario()">CANCELAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /main -->
 </div><!-- /app -->
 
@@ -861,6 +938,8 @@ async function iniciarSesion() {
 
   usuario = { rol: perfil.rol, nombre: perfil.nombre, email: perfil.email, telegram_id: perfil.telegram_id };
   sessionStorage.setItem('darwash_user', JSON.stringify(usuario));
+  // Registrar último acceso
+  await sb.from('usuarios').update({ last_login: new Date().toISOString() }).eq('email', email);
   montarApp();
 }
 
@@ -878,27 +957,24 @@ async function cerrarSesion() {
 //  MONTAR APP SEGÚN ROL
 // ════════════════════════════════════════════════════
 const TABS_POR_ROL = {
-  // Admin: acceso total a todo
   admin: [
     { id: 'dashboard',   label: '▸ Dashboard' },
     { id: 'nueva-carga', label: '+ Nueva Carga' },
     { id: 'seguimiento', label: '≡ Seguimiento' },
     { id: 'pablo',       label: '✓ Confirmaciones' },
     { id: 'dte',         label: '📄 DTE' },
+    { id: 'usuarios',    label: '👤 Usuarios' },
   ],
-  // Jefe: carga operaciones + ve todo pero no confirma ni emite DTE
   jefe: [
     { id: 'dashboard',   label: '▸ Dashboard' },
     { id: 'nueva-carga', label: '+ Nueva Carga' },
     { id: 'seguimiento', label: '≡ Seguimiento' },
   ],
-  // Pablo: confirma cargas + ve dashboard y seguimiento
   pablo: [
     { id: 'dashboard',   label: '▸ Dashboard' },
     { id: 'pablo',       label: '✓ Mis Cargas' },
     { id: 'seguimiento', label: '≡ Seguimiento' },
   ],
-  // Fernando (DTE): emite DTEs + ve dashboard y seguimiento
   dte: [
     { id: 'dashboard',   label: '▸ Dashboard' },
     { id: 'dte',         label: '📄 Emitir DTE' },
@@ -941,6 +1017,7 @@ function cambiarTab(pageId, tabEl) {
   if (pageId === 'seguimiento') cargarSeguimiento();
   if (pageId === 'pablo')       cargarPablo();
   if (pageId === 'dte')         cargarDTE();
+  if (pageId === 'usuarios')    cargarUsuarios();
 }
 
 // ════════════════════════════════════════════════════
@@ -1222,90 +1299,55 @@ async function confirmarPablo(opId, numero) {
 //  DTE
 // ════════════════════════════════════════════════════
 async function cargarDTE() {
+  const { data: ops } = await sb.from('operaciones').select('*, seguimiento(*)').eq('estado', 'confirmada').order('f_carga');
   const el = document.getElementById('lista-dte');
-  el.innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
-  const { data: ops } = await sb.from('operaciones')
-    .select('*, seguimiento(nro_dte, kg_pie, cant_real, cat_real)')
-    .eq('estado', 'confirmada')
-    .order('f_carga', { ascending: true });
 
   if (!ops || ops.length === 0) {
     el.innerHTML = '<div class="alert info">✓ No hay operaciones pendientes de DTE</div>';
     return;
   }
 
-  const hoy = new Date().toISOString().split('T')[0];
-
-  el.innerHTML = ops.map(op => {
-    const seg     = op.seguimiento?.[0] || {};
-    const cabezas = seg.cant_real || op.cant || '?';
-    const cat     = seg.cat_real  || op.cat  || '';
-    const kgPie   = seg.kg_pie ? Number(seg.kg_pie).toLocaleString('es-AR') + ' kg' : '—';
-    return `
+  el.innerHTML = ops.map(op => `
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px">
         <div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:6px">
-            #${op.numero} — ${op.f_carga}
-            <span style="margin-left:8px;color:var(--accent2);background:var(--bg3);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">${op.por}</span>
-          </div>
-          <div style="font-size:15px;font-weight:600;color:var(--white);margin-bottom:4px">${op.titular}</div>
-          <div style="color:var(--text2);margin-bottom:4px">
-            ${cabezas} <strong style="color:var(--white)">${cat}</strong> ${op.raza || ''}
-            &nbsp;·&nbsp; <strong style="color:var(--white)">${op.comprador}</strong> ${op.planta ? '('+op.planta+')' : ''}
-          </div>
-          <div style="color:var(--text2);font-size:12px">
-            Destino: <strong style="color:var(--white)">${op.destino || '—'}</strong>
-            &nbsp;·&nbsp; Kg pie: <strong style="color:var(--accent)">${kgPie}</strong>
-            ${op.acuerdo_comp ? '&nbsp;·&nbsp; Acuerdo: <strong style="color:var(--white)">'+op.acuerdo_comp+'</strong>' : ''}
-          </div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:6px">#${op.numero} — ${op.f_carga}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--white);margin-bottom:4px">${op.titular} | ${op.cant || '?'} ${op.cat || ''} → ${op.comprador || '?'}</div>
+          <div style="color:var(--text2)">${op.planta || '?'} · ${op.destino || '?'}</div>
         </div>
-        <button class="btn small" onclick="emitirDTE(${op.id}, ${op.numero})" style="white-space:nowrap">📄 EMITIR DTE</button>
+        <button class="btn small" onclick="emitirDTE(${op.id}, ${op.numero})">📄 EMITIR DTE</button>
       </div>
       <div class="sep"></div>
-      <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
-        <div class="field">
-          <label>N° DTE *</label>
-          <input type="text" id="dte-nro-${op.id}" placeholder="Ej: 031189922-8">
-        </div>
-        <div class="field">
-          <label>Fecha DTE</label>
-          <input type="date" id="dte-fecha-${op.id}" value="${hoy}">
-        </div>
+      <div class="field" style="max-width:300px">
+        <label>N° DTE</label>
+        <input type="text" id="dte-nro-${op.id}" placeholder="Ej: 031189922-8">
       </div>
-    </div>`;
-  }).join('');
+    </div>
+  `).join('');
 }
 
 async function emitirDTE(opId, numero) {
-  const nroDTE  = document.getElementById(`dte-nro-${opId}`).value.trim();
-  const fechaDTE = document.getElementById(`dte-fecha-${opId}`)?.value || new Date().toISOString().split('T')[0];
-
+  const nroDTE = document.getElementById(`dte-nro-${opId}`).value.trim();
   if (!nroDTE) {
     mostrarAlerta('alert-dte', 'error', '⚠ Ingresá el número de DTE');
     return;
   }
 
-  // Estado → en_transito
   await sb.from('operaciones').update({ estado: 'en_transito', updated_at: new Date() }).eq('id', opId);
-
-  // Guardar DTE en seguimiento
   await sb.from('seguimiento').update({
     nro_dte:    nroDTE,
-    f_dte:      fechaDTE,
+    f_dte:      new Date().toISOString(),
     updated_at: new Date()
   }).eq('operacion_id', opId);
 
-  // Telegram
   let msg  = `📄 *DTE EMITIDO — Op #${numero}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
-  msg     += `🔢 N° DTE: *${nroDTE}*\n`;
-  msg     += `📅 Fecha: *${fechaDTE}*\n`;
+  msg     += `📝 N° DTE: *${nroDTE}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
-  msg     += `🚚 Hacienda en tránsito al frigorífico.`;
+  msg     += `⏳ Hacienda en tránsito al frigorífico.`;
   for (const id of ADMINS_TG) await enviarTelegram(id, msg);
 
-  mostrarAlerta('alert-dte', 'success', `✅ DTE ${nroDTE} emitido — Op #${numero} en tránsito`);
+  mostrarAlerta('alert-dte', 'success', `✅ DTE ${nroDTE} registrado para Op #${numero}`);
   cargarDTE();
 }
 
@@ -1533,6 +1575,199 @@ async function enviarPushNotification(tokens, titulo, cuerpo) {
 // ════════════════════════════════════════════════════
 //  INIT
 // ════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════
+//  USUARIOS (solo admin)
+// ════════════════════════════════════════════════════
+const ROL_LABELS = {
+  admin: { label: 'ADMIN',  color: 'var(--danger)',  bg: '#2a0d14', border: '#4d1a24' },
+  jefe:  { label: 'JEFE',   color: 'var(--accent)',  bg: '#0d2a1a', border: '#1a4d30' },
+  pablo: { label: 'PABLO',  color: 'var(--warn)',    bg: '#2a1a0d', border: '#4a3010' },
+  dte:   { label: 'DTE',    color: 'var(--accent2)', bg: '#0d1a2a', border: '#1a304d' },
+};
+
+async function cargarUsuarios() {
+  const el = document.getElementById('lista-usuarios');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
+
+  const { data: users, error } = await sb
+    .from('usuarios')
+    .select('id, nombre, email, rol, telegram_id, activo, created_at, last_login')
+    .order('created_at', { ascending: true });
+
+  if (error || !users) {
+    el.innerHTML = '<div class="alert error">❌ Error cargando usuarios</div>';
+    return;
+  }
+
+  el.innerHTML = `
+    <table class="ops-table">
+      <thead><tr>
+        <th>Nombre</th>
+        <th>Email</th>
+        <th>Rol</th>
+        <th>Telegram ID</th>
+        <th>Último acceso</th>
+        <th>Estado</th>
+        <th style="width:120px">Acciones</th>
+      </tr></thead>
+      <tbody>
+        ${users.map(u => {
+          const rolInfo = ROL_LABELS[u.rol] || { label: u.rol?.toUpperCase() || '?', color: 'var(--text2)', bg: 'var(--bg3)', border: 'var(--border)' };
+          const lastLogin = u.last_login
+            ? new Date(u.last_login).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })
+            : 'Nunca';
+          return `
+          <tr style="${!u.activo ? 'opacity:.45' : ''}">
+            <td style="font-weight:600;color:var(--white)">${u.nombre || '—'}</td>
+            <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${u.email}</td>
+            <td>
+              <span style="font-family:var(--mono);font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;color:${rolInfo.color};background:${rolInfo.bg};border:1px solid ${rolInfo.border}">
+                ${rolInfo.label}
+              </span>
+            </td>
+            <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${u.telegram_id || '—'}</td>
+            <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${lastLogin}</td>
+            <td>
+              <span style="font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;${u.activo ? 'color:var(--accent);background:#0d2a1a;border:1px solid #1a4d30' : 'color:var(--text2);background:var(--bg3);border:1px solid var(--border)'}">
+                ${u.activo ? '● ACTIVO' : '○ INACTIVO'}
+              </span>
+            </td>
+            <td>
+              <div style="display:flex;gap:6px">
+                <button onclick="abrirEditarUsuario('${u.id}','${u.nombre}','${u.rol}','${u.telegram_id || ''}')"
+                  style="font-family:var(--mono);font-size:9px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--accent2);cursor:pointer">
+                  ✎ EDITAR
+                </button>
+                <button onclick="toggleActivoUsuario('${u.id}', ${u.activo}, '${u.nombre}')"
+                  style="font-family:var(--mono);font-size:9px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:${u.activo ? 'var(--danger)' : 'var(--accent)'};cursor:pointer">
+                  ${u.activo ? '✕' : '✓'}
+                </button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div style="margin-top:12px;font-family:var(--mono);font-size:10px;color:var(--text2)">
+      ${users.length} usuarios · ${users.filter(u=>u.activo).length} activos
+    </div>`;
+}
+
+async function crearUsuario() {
+  const nombre   = document.getElementById('u-nombre').value.trim();
+  const email    = document.getElementById('u-email').value.trim().toLowerCase();
+  const password = document.getElementById('u-pass').value;
+  const rol      = document.getElementById('u-rol').value;
+  const telegram = document.getElementById('u-telegram').value.trim();
+
+  if (!nombre || !email || !password || !rol) {
+    mostrarAlerta('alert-usuarios', 'error', '⚠ Completá nombre, email, contraseña y rol');
+    return;
+  }
+  if (password.length < 6) {
+    mostrarAlerta('alert-usuarios', 'error', '⚠ La contraseña debe tener al menos 6 caracteres');
+    return;
+  }
+
+  // 1. Crear en Supabase Auth
+  const { data: authData, error: authErr } = await sb.auth.admin
+    ? await sb.auth.signUp({ email, password })
+    : await sb.auth.signUp({ email, password });
+
+  if (authErr) {
+    mostrarAlerta('alert-usuarios', 'error', `❌ Error al crear auth: ${authErr.message}`);
+    return;
+  }
+
+  // 2. Insertar en tabla usuarios
+  const { error: dbErr } = await sb.from('usuarios').insert([{
+    nombre,
+    email,
+    rol,
+    telegram_id: telegram || null,
+    activo: true,
+  }]);
+
+  if (dbErr) {
+    mostrarAlerta('alert-usuarios', 'error', `❌ Error al guardar usuario: ${dbErr.message}`);
+    return;
+  }
+
+  // Limpiar form
+  ['u-nombre','u-email','u-pass','u-telegram'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('u-rol').value = '';
+
+  mostrarAlerta('alert-usuarios', 'success', `✅ Usuario ${nombre} creado correctamente`);
+  cargarUsuarios();
+}
+
+function abrirEditarUsuario(id, nombre, rol, telegram) {
+  document.getElementById('edit-id').value      = id;
+  document.getElementById('edit-nombre').value  = nombre;
+  document.getElementById('edit-rol').value     = rol;
+  document.getElementById('edit-telegram').value = telegram;
+  document.getElementById('modal-usuario').style.display = 'flex';
+}
+
+function cerrarModalUsuario() {
+  document.getElementById('modal-usuario').style.display = 'none';
+}
+
+async function guardarEdicionUsuario() {
+  const id       = document.getElementById('edit-id').value;
+  const nombre   = document.getElementById('edit-nombre').value.trim();
+  const rol      = document.getElementById('edit-rol').value;
+  const telegram = document.getElementById('edit-telegram').value.trim();
+
+  if (!nombre || !rol) {
+    mostrarAlerta('alert-usuarios', 'error', '⚠ Nombre y rol son obligatorios');
+    cerrarModalUsuario();
+    return;
+  }
+
+  const { error } = await sb.from('usuarios').update({
+    nombre,
+    rol,
+    telegram_id: telegram || null,
+    updated_at: new Date()
+  }).eq('id', id);
+
+  if (error) {
+    mostrarAlerta('alert-usuarios', 'error', `❌ Error: ${error.message}`);
+  } else {
+    mostrarAlerta('alert-usuarios', 'success', `✅ Usuario ${nombre} actualizado`);
+  }
+
+  cerrarModalUsuario();
+  cargarUsuarios();
+}
+
+async function toggleActivoUsuario(id, activo, nombre) {
+  const nuevoEstado = !activo;
+  const accion = nuevoEstado ? 'activar' : 'desactivar';
+
+  if (!confirm(`¿Querés ${accion} al usuario ${nombre}?`)) return;
+
+  const { error } = await sb.from('usuarios')
+    .update({ activo: nuevoEstado, updated_at: new Date() })
+    .eq('id', id);
+
+  if (error) {
+    mostrarAlerta('alert-usuarios', 'error', `❌ Error: ${error.message}`);
+  } else {
+    mostrarAlerta('alert-usuarios', 'success', `✅ Usuario ${nombre} ${nuevoEstado ? 'activado' : 'desactivado'}`);
+  }
+  cargarUsuarios();
+}
+
+// Cerrar modal clickeando fuera
+document.addEventListener('click', (e) => {
+  const modal = document.getElementById('modal-usuario');
+  if (modal && e.target === modal) cerrarModalUsuario();
+});
+
+
 window.onload = async () => {
   // Verificar si hay sesión activa en Supabase
   const { data: { session } } = await sb.auth.getSession();
