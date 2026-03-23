@@ -807,38 +807,14 @@
     <div class="page" id="page-usuarios">
       <div id="alert-usuarios"></div>
 
-      <!-- CREAR USUARIO -->
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-title">▸ Nuevo Usuario</div>
-        <div class="alert info" style="margin-bottom:16px">
-          ⚠️ <strong>Paso previo:</strong> Primero creá el usuario en <strong>Supabase Dashboard → Authentication → Users → Add user</strong> con su email y contraseña. Después registralo acá para asignarle el rol.
-        </div>
-        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px">
-          <div class="field">
-            <label>Nombre *</label>
-            <input type="text" id="u-nombre" placeholder="Ej: Pablo Becerra">
+      <!-- INFO CREAR USUARIO -->
+      <div class="card" style="margin-bottom:20px;border-color:#1a304d">
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:20px">💬</span>
+          <div>
+            <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--accent2);margin-bottom:4px">CREAR NUEVO USUARIO</div>
+            <div style="color:var(--text2);font-size:13px">Para crear un usuario nuevo, pasale a Leo los datos: <strong style="color:var(--white)">nombre, email, contraseña y rol</strong>. En 30 segundos queda listo.</div>
           </div>
-          <div class="field">
-            <label>Email * (debe existir en Supabase Auth)</label>
-            <input type="email" id="u-email" placeholder="pablo@email.com">
-          </div>
-          <div class="field">
-            <label>Rol *</label>
-            <select id="u-rol">
-              <option value="">— Seleccioná —</option>
-              <option value="admin">admin — Administrador total</option>
-              <option value="jefe">jefe — Carga operaciones</option>
-              <option value="pablo">pablo — Confirma cargas</option>
-              <option value="dte">dte — Emite DTE</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Telegram ID (opcional)</label>
-            <input type="text" id="u-telegram" placeholder="Ej: 1172465951">
-          </div>
-        </div>
-        <div style="margin-top:16px">
-          <button class="btn" style="width:auto;padding:10px 24px" onclick="crearUsuario()">+ CREAR USUARIO</button>
         </div>
       </div>
 
