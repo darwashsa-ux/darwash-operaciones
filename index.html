@@ -512,6 +512,53 @@
   }
 
   .hidden { display: none !important; }
+
+  /* ── MODAL DETALLE OPERACIÓN ─────────────────── */
+  .modal-overlay {
+    display: none; position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%; background: rgba(0,0,0,.75);
+    z-index: 500; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-detalle {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 12px; width: 100%; max-width: 680px;
+    max-height: 90vh; display: flex; flex-direction: column;
+    overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.6);
+  }
+  .modal-header { padding: 18px 24px 0; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .modal-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .modal-op-num { font-family: var(--mono); font-size: 11px; letter-spacing: 3px; color: var(--accent); margin-bottom: 4px; }
+  .modal-op-title { font-size: 17px; font-weight: 600; color: var(--white); }
+  .modal-close { background: none; border: none; color: var(--text2); font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1; transition: color .15s; }
+  .modal-close:hover { color: var(--danger); }
+  .modal-tabs { display: flex; }
+  .modal-tab { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--text2); padding: 10px 18px; cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; text-transform: uppercase; }
+  .modal-tab:hover { color: var(--text); }
+  .modal-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .modal-body { overflow-y: auto; flex: 1; padding: 20px 24px; }
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title { font-family: var(--mono); font-size: 9px; letter-spacing: 3px; color: var(--accent2); text-transform: uppercase; margin-bottom: 10px; }
+  .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+  .detail-item-label { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; color: var(--text2); text-transform: uppercase; margin-bottom: 3px; }
+  .detail-item-value { font-size: 13px; color: var(--white); font-weight: 500; }
+  .archivo-card { display: flex; align-items: center; justify-content: space-between; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; }
+  .archivo-icon { font-size: 24px; margin-right: 12px; }
+  .archivo-info { flex: 1; }
+  .archivo-nombre { font-family: var(--mono); font-size: 11px; color: var(--white); font-weight: 600; margin-bottom: 2px; }
+  .archivo-meta { font-size: 11px; color: var(--text2); }
+  .archivo-btn { font-family: var(--mono); font-size: 9px; letter-spacing: 1px; padding: 5px 12px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: var(--accent2); cursor: pointer; text-decoration: none; transition: all .15s; }
+  .archivo-btn:hover { border-color: var(--accent2); background: #0d1a2a; }
+  .archivo-empty { text-align: center; padding: 30px; font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: 1px; line-height: 1.8; }
+  .foto-thumbnail { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid var(--border); max-height: 300px; object-fit: cover; cursor: pointer; }
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 8px; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 20px; }
+  .timeline-dot { position: absolute; left: -24px; top: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg2); }
+  .timeline-dot.inactive { background: var(--border); }
+  .timeline-estado { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--accent); text-transform: uppercase; margin-bottom: 3px; }
+  .timeline-fecha { font-size: 12px; color: var(--text2); }
+  .timeline-detalle { font-size: 12px; color: var(--text); margin-top: 4px; }
   .text-right { text-align: right; }
   .mt-16 { margin-top: 16px; }
   .flex { display: flex; gap: 8px; align-items: center; }
@@ -910,6 +957,32 @@
     </div>
 
   </div><!-- /main -->
+
+  <!-- MODAL DETALLE OPERACIÓN -->
+  <div class="modal-overlay" id="modal-detalle" onclick="if(event.target===this)cerrarModalDetalle()">
+    <div class="modal-detalle">
+      <div class="modal-header">
+        <div class="modal-header-top">
+          <div>
+            <div class="modal-op-num" id="modal-op-num"></div>
+            <div class="modal-op-title" id="modal-op-title"></div>
+          </div>
+          <button class="modal-close" onclick="cerrarModalDetalle()">&#x2715;</button>
+        </div>
+        <div class="modal-tabs">
+          <div class="modal-tab active" onclick="cambiarModalTab('detalle',this)">&#x1F4CB; Detalle</div>
+          <div class="modal-tab" onclick="cambiarModalTab('archivos',this)">&#x1F4C1; Archivos</div>
+          <div class="modal-tab" onclick="cambiarModalTab('historial',this)">&#x1F4CA; Historial</div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="modal-tab-detalle"></div>
+        <div id="modal-tab-archivos" style="display:none"></div>
+        <div id="modal-tab-historial" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /app -->
 
 <script>
@@ -1473,7 +1546,7 @@ function renderTablaOps(ops, detallado) {
     </tr>`).join('');
 
   const rowsSeguimiento = ops.map(op => `
-    <tr>
+    <tr style="cursor:pointer" onclick="abrirDetalleOperacion(${op.id})">
       <td class="col-num" style="font-family:var(--mono);color:var(--accent);font-weight:600">${op.numero}</td>
       <td class="col-fecha" style="font-family:var(--mono);font-size:12px;color:var(--text2)">${op.f_carga || '—'}</td>
       <td class="col-consig"><span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--accent2);background:var(--bg3);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">${op.por || '—'}</span></td>
@@ -1861,6 +1934,127 @@ function toggleTema() {
   localStorage.setItem('darwash_tema', isLight ? 'light' : 'dark');
   const btn = document.getElementById('btn-tema');
   if (btn) btn.textContent = isLight ? '🌙' : '☀️';
+}
+
+
+// ════════════════════════════════════════════════════
+//  MODAL DETALLE OPERACIÓN
+// ════════════════════════════════════════════════════
+async function abrirDetalleOperacion(opId) {
+  document.getElementById('modal-detalle').classList.add('open');
+  document.body.style.overflow = 'hidden';
+  const { data: op } = await sb.from('operaciones').select('*').eq('id', opId).single();
+  const { data: seg } = await sb.from('seguimiento').select('*').eq('operacion_id', opId).single();
+  document.getElementById('modal-op-num').textContent = '#' + op.numero + ' — ' + op.f_carga;
+  document.getElementById('modal-op-title').textContent = op.titular + ' → ' + op.comprador + (op.planta ? ' (' + op.planta + ')' : '');
+  renderModalDetalle(op, seg);
+  renderModalArchivos(op, seg);
+  renderModalHistorial(op, seg);
+}
+
+function cerrarModalDetalle() {
+  document.getElementById('modal-detalle').classList.remove('open');
+  document.body.style.overflow = '';
+  document.querySelectorAll('.modal-tab').forEach((t,i) => t.classList.toggle('active', i===0));
+  document.getElementById('modal-tab-detalle').style.display = '';
+  document.getElementById('modal-tab-archivos').style.display = 'none';
+  document.getElementById('modal-tab-historial').style.display = 'none';
+}
+
+function cambiarModalTab(tab, el) {
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['detalle','archivos','historial'].forEach(t => {
+    document.getElementById('modal-tab-' + t).style.display = t === tab ? '' : 'none';
+  });
+}
+
+function fmt(v) { return v || '<span style="color:var(--text2)">&#8212;</span>'; }
+function fmtPeso(v) { return v ? Number(v).toLocaleString('es-AR') + ' kg' : '<span style="color:var(--text2)">&#8212;</span>'; }
+function fmtMoney(v) { return v ? '$' + Number(v).toLocaleString('es-AR') : '<span style="color:var(--text2)">&#8212;</span>'; }
+
+function renderModalDetalle(op, seg) {
+  document.getElementById('modal-tab-detalle').innerHTML =
+    '<div class="detail-section"><div class="detail-section-title">Operación</div>' +
+    '<div class="detail-grid">' +
+    '<div class="detail-item"><div class="detail-item-label">Consignataria</div><div class="detail-item-value">' + fmt(op.por) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">F. Carga</div><div class="detail-item-value">' + fmt(op.f_carga) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Operador</div><div class="detail-item-value">' + fmt(op.operador) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Estado</div><div class="detail-item-value"><span class="estado-badge estado-' + op.estado + '">' + op.estado + '</span></div></div>' +
+    '</div></div>' +
+    '<div class="detail-section"><div class="detail-section-title">Hacienda</div>' +
+    '<div class="detail-grid">' +
+    '<div class="detail-item"><div class="detail-item-label">Vendedor</div><div class="detail-item-value">' + fmt(op.titular) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Cant. estimada</div><div class="detail-item-value">' + fmt(op.cant) + ' ' + (op.cat||'') + ' ' + (op.raza||'') + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Kg estimados</div><div class="detail-item-value">' + fmtPeso(op.kgs) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Destino</div><div class="detail-item-value">' + fmt(op.destino) + '</div></div>' +
+    (seg && seg.cant_real ? '<div class="detail-item"><div class="detail-item-label">Cant. real</div><div class="detail-item-value" style="color:var(--accent)">' + seg.cant_real + ' ' + (seg.cat_real||'') + '</div></div>' : '') +
+    (seg && seg.kg_pie ? '<div class="detail-item"><div class="detail-item-label">Kg pie real</div><div class="detail-item-value" style="color:var(--accent)">' + fmtPeso(seg.kg_pie) + '</div></div>' : '') +
+    '</div></div>' +
+    '<div class="detail-section"><div class="detail-section-title">Condiciones Comerciales</div>' +
+    '<div class="detail-grid">' +
+    '<div class="detail-item"><div class="detail-item-label">Acuerdo Comp.</div><div class="detail-item-value">' + fmt(op.acuerdo_comp) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">$ Venta</div><div class="detail-item-value">' + fmtMoney(op.vta) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Plazo Cobro</div><div class="detail-item-value">' + fmt(op.plazo_cobro) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Acuerdo Vend.</div><div class="detail-item-value">' + fmt(op.acuerdo_vend) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">$ Liquidación</div><div class="detail-item-value">' + fmtMoney(op.liq_vta) + '</div></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Plazo Pago</div><div class="detail-item-value">' + fmt(op.plazo_pago) + '</div></div>' +
+    '</div></div>' +
+    (seg && (seg.transportista||seg.chofer) ?
+      '<div class="detail-section"><div class="detail-section-title">Transporte</div><div class="detail-grid">' +
+      (seg.transportista ? '<div class="detail-item"><div class="detail-item-label">Empresa</div><div class="detail-item-value">' + seg.transportista + '</div></div>' : '') +
+      (seg.chofer ? '<div class="detail-item"><div class="detail-item-label">Chofer</div><div class="detail-item-value">' + seg.chofer + '</div></div>' : '') +
+      (seg.f_salida ? '<div class="detail-item"><div class="detail-item-label">Salida</div><div class="detail-item-value">' + seg.f_salida + ' ' + (seg.hora_salida||'') + '</div></div>' : '') +
+      (seg.f_arribo ? '<div class="detail-item"><div class="detail-item-label">Arribo</div><div class="detail-item-value" style="color:var(--accent)">' + new Date(seg.f_arribo).toLocaleString('es-AR') + '</div></div>' : '') +
+      '</div></div>' : '') +
+    (seg && seg.nro_dte ?
+      '<div class="detail-section"><div class="detail-section-title">DTE</div><div class="detail-grid">' +
+      '<div class="detail-item"><div class="detail-item-label">N° DTE</div><div class="detail-item-value" style="color:var(--accent)">' + seg.nro_dte + '</div></div>' +
+      (seg.f_dte ? '<div class="detail-item"><div class="detail-item-label">Fecha DTE</div><div class="detail-item-value">' + seg.f_dte + '</div></div>' : '') +
+      '</div></div>' : '') +
+    (op.observaciones ? '<div class="detail-section"><div class="detail-section-title">Observaciones</div><div style="font-size:13px;color:var(--text);line-height:1.6">' + op.observaciones + '</div></div>' : '');
+}
+
+function renderModalArchivos(op, seg) {
+  let html = '';
+  if (seg && seg.foto_descarga_url) {
+    html += '<div class="archivo-card">' +
+      '<span class="archivo-icon">&#x1F4F8;</span>' +
+      '<div class="archivo-info"><div class="archivo-nombre">Foto de Descarga</div><div class="archivo-meta">Subida por el chofer al confirmar arribo</div></div>' +
+      '<a href="' + seg.foto_descarga_url + '" target="_blank" class="archivo-btn">VER &#x2192;</a>' +
+      '</div>' +
+      '<img src="' + seg.foto_descarga_url + '" class="foto-thumbnail" onclick="window.open(\'' + seg.foto_descarga_url + '\',\'_blank\')" alt="Foto descarga">';
+  }
+  html += '<div style="margin-top:16px"><div class="detail-section-title">PDFs vinculados</div>' +
+    '<div class="archivo-empty">Los PDFs de romaneos y costeos se vincularán automáticamente cuando el sistema los reciba por mail.</div></div>';
+  if (!seg || !seg.foto_descarga_url) {
+    html = '<div class="archivo-empty">&#x1F4C2;<br><br>AÚN NO HAY ARCHIVOS<br><span style="color:var(--border);font-size:10px">Se agregarán cuando el chofer confirme el arribo y cuando lleguen los romaneos</span></div>' + html;
+  }
+  document.getElementById('modal-tab-archivos').innerHTML = html;
+}
+
+function renderModalHistorial(op, seg) {
+  const pasos = [
+    { label: 'Carga registrada',    fecha: op.f_anotacion, detalle: op.operador || null },
+    { label: 'Confirmada (Pablo)',   fecha: seg && seg.f_pablo ? new Date(seg.f_pablo).toLocaleDateString('es-AR') : null, detalle: seg && seg.cant_real ? seg.cant_real + ' cab' + (seg.kg_pie ? ' · ' + Number(seg.kg_pie).toLocaleString('es-AR') + ' kg pie' : '') : null },
+    { label: 'DTE Emitido',         fecha: seg && seg.f_dte ? seg.f_dte : null, detalle: seg && seg.nro_dte ? seg.nro_dte : null },
+    { label: 'En tránsito',    fecha: seg && seg.f_salida ? seg.f_salida : null, detalle: seg && seg.transportista ? seg.transportista + (seg.chofer ? ' · ' + seg.chofer : '') : null },
+    { label: 'Arribo confirmado',   fecha: seg && seg.f_arribo ? new Date(seg.f_arribo).toLocaleDateString('es-AR') : null, detalle: seg && seg.obs_descarga ? seg.obs_descarga : null },
+  ];
+  const orden = ['pendiente','confirmada','dte_emitido','en_transito','finalizada'];
+  const idxActual = orden.indexOf(op.estado);
+  document.getElementById('modal-tab-historial').innerHTML =
+    '<div class="timeline">' +
+    pasos.map((p, i) => {
+      const activo = i <= idxActual;
+      return '<div class="timeline-item">' +
+        '<div class="timeline-dot ' + (activo ? '' : 'inactive') + '"></div>' +
+        '<div class="timeline-estado" style="' + (activo ? '' : 'color:var(--text2)') + '">' + p.label + '</div>' +
+        (p.fecha ? '<div class="timeline-fecha">' + p.fecha + '</div>' : '') +
+        (p.detalle ? '<div class="timeline-detalle">' + p.detalle + '</div>' : '') +
+        '</div>';
+    }).join('') +
+    '</div>';
 }
 
 function aplicarTemaGuardado() {
