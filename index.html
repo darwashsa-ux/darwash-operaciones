@@ -1269,7 +1269,7 @@ function cambiarTab(pageId, tabEl) {
 // ════════════════════════════════════════════════════
 async function cargarDashboard() {
   const hoy = new Date().toISOString().split('T')[0];
-  const { data: ops } = await sb.from('operaciones').select('*').order('created_at', { ascending: false });
+  const { data: ops } = await sb.from('operaciones').select('*').order('numero', { ascending: false }).limit(50);
   if (!ops) return;
 
   const hoyCount      = ops.filter(o => o.f_carga === hoy).length;
