@@ -563,6 +563,36 @@
   .mt-16 { margin-top: 16px; }
   .flex { display: flex; gap: 8px; align-items: center; }
   .sep { height: 1px; background: var(--border); margin: 20px 0; }
+  /* ── AUTOCOMPLETE ─────────────────────────────── */
+  .autocomplete-list {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg2);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 999;
+    margin-top: 2px;
+    box-shadow: var(--shadow);
+  }
+  .autocomplete-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: var(--bg3); color: var(--accent); }
+  .autocomplete-item mark { background: none; color: var(--accent); font-weight: 600; }
+
 </style>
 </head>
 <body>
@@ -673,10 +703,32 @@
       <div class="card">
         <div class="card-title">② Datos del Negocio</div>
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr))">
-          <div class="field">
+
+          <!-- VENDEDOR con autocomplete -->
+          <div class="field" style="position:relative">
             <label>Vendedor *</label>
-            <input type="text" id="c-titular" placeholder="Nombre del vendedor / productor">
+            <input type="text" id="c-titular" placeholder="Escribí para buscar..."
+              autocomplete="off"
+              oninput="filtrarClientes('c-titular','c-titular-list')"
+              onblur="setTimeout(()=>cerrarDropdown('c-titular-list'),200)">
+            <div id="c-titular-list" class="autocomplete-list"></div>
+            <input type="hidden" id="c-titular-id">
           </div>
+
+          <!-- ORIGEN -->
+          <div class="field">
+            <label>Origen</label>
+            <select id="c-origen-select" onchange="alSeleccionarOrigen()">
+              <option value="">— Primero seleccioná vendedor —</option>
+            </select>
+            <input type="text" id="c-origen-manual" placeholder="Nombre del establecimiento" style="display:none;margin-top:6px">
+            <div id="c-origen-aviso" style="display:none;font-family:var(--mono);font-size:10px;color:var(--warn);margin-top:4px">
+              ⚠ Sin RENSPA vinculado en sistema
+            </div>
+            <input type="hidden" id="c-origen-valor">
+            <input type="hidden" id="c-origen-renspa">
+          </div>
+
           <div class="field">
             <label>Operador / Interesado</label>
             <select id="c-operador">
@@ -696,10 +748,18 @@
               <option value="UE">UE</option>
             </select>
           </div>
-          <div class="field">
+
+          <!-- COMPRADOR con autocomplete -->
+          <div class="field" style="position:relative">
             <label>Comprador *</label>
-            <input type="text" id="c-comprador" placeholder="Ej: COTO">
+            <input type="text" id="c-comprador" placeholder="Escribí para buscar..."
+              autocomplete="off"
+              oninput="filtrarClientes('c-comprador','c-comprador-list')"
+              onblur="setTimeout(()=>cerrarDropdown('c-comprador-list'),200)">
+            <div id="c-comprador-list" class="autocomplete-list"></div>
+            <input type="hidden" id="c-comprador-id">
           </div>
+
           <div class="field">
             <label>Planta</label>
             <input type="text" id="c-planta" placeholder="Ej: G CATAN">
@@ -1233,6 +1293,7 @@ function montarApp() {
   document.getElementById('badge-nombre').textContent = usuario.nombre;
   setTimeout(verificarNotificaciones, 500);
 
+  cargarMaestroClientes();
   const tabs    = TABS_POR_ROL[usuario.rol] || [];
   const tabsEl  = document.getElementById('tabs-container');
   tabsEl.innerHTML = '';
@@ -1286,6 +1347,124 @@ async function cargarDashboard() {
   document.getElementById('tabla-recientes').innerHTML = renderTablaOps(recientes, false);
 }
 
+
+// ════════════════════════════════════════════════════
+//  MAESTRO CLIENTES — autocomplete y origen
+// ════════════════════════════════════════════════════
+let clientesCache = [];
+let establecimientosCache = [];
+
+async function cargarMaestroClientes() {
+  if (clientesCache.length > 0) return;
+  const { data } = await sb.from('clientes').select('id_cta_auxi, nombre').order('nombre');
+  clientesCache = data || [];
+}
+
+async function cargarEstablecimientos(idCtaAuxi) {
+  const { data } = await sb.from('clientes_establecimientos')
+    .select('establecimiento, renspa, localidad')
+    .eq('id_cta_auxi', idCtaAuxi)
+    .order('establecimiento');
+  return data || [];
+}
+
+function filtrarClientes(inputId, listId) {
+  const input = document.getElementById(inputId);
+  const list  = document.getElementById(listId);
+  const q     = input.value.trim().toLowerCase();
+
+  if (q.length < 2) { cerrarDropdown(listId); return; }
+
+  const matches = clientesCache
+    .filter(c => c.nombre && c.nombre.toLowerCase().includes(q))
+    .slice(0, 20);
+
+  if (matches.length === 0) { cerrarDropdown(listId); return; }
+
+  list.innerHTML = matches.map(c => {
+    const nombre = c.nombre.replace(new RegExp(q, 'gi'), m => '<mark>' + m + '</mark>');
+    return `<div class="autocomplete-item" 
+      onmousedown="seleccionarCliente('${inputId}','${listId}',${c.id_cta_auxi},\`${c.nombre.replace(/`/g,"'")}\`)">
+      ${nombre}
+    </div>`;
+  }).join('');
+
+  list.style.display = 'block';
+}
+
+function seleccionarCliente(inputId, listId, idCtaAuxi, nombre) {
+  document.getElementById(inputId).value = nombre;
+  document.getElementById(inputId + '-id').value = idCtaAuxi;
+  cerrarDropdown(listId);
+  if (inputId === 'c-titular') cargarOrigenVendedor(idCtaAuxi);
+}
+
+function cerrarDropdown(listId) {
+  const el = document.getElementById(listId);
+  if (el) el.style.display = 'none';
+}
+
+async function cargarOrigenVendedor(idCtaAuxi) {
+  const select  = document.getElementById('c-origen-select');
+  const manual  = document.getElementById('c-origen-manual');
+  const aviso   = document.getElementById('c-origen-aviso');
+  const hidVal  = document.getElementById('c-origen-valor');
+  const hidRens = document.getElementById('c-origen-renspa');
+
+  // Reset
+  select.innerHTML = '<option value="">— Seleccioná establecimiento —</option>';
+  hidVal.value = ''; hidRens.value = '';
+  aviso.style.display = 'none';
+  manual.style.display = 'none';
+  manual.value = '';
+
+  const estabs = await cargarEstablecimientos(idCtaAuxi);
+
+  if (estabs.length > 0) {
+    estabs.forEach(e => {
+      const op = document.createElement('option');
+      op.value = e.establecimiento;
+      op.dataset.renspa = e.renspa || '';
+      op.textContent = e.establecimiento + (e.localidad ? ' — ' + e.localidad : '') + (e.renspa ? ' [' + e.renspa + ']' : '');
+      select.appendChild(op);
+    });
+    // opción manual al final
+    const opManual = document.createElement('option');
+    opManual.value = '__manual__';
+    opManual.textContent = '+ Ingresar establecimiento manualmente';
+    select.appendChild(opManual);
+    select.style.display = 'block';
+  } else {
+    // No hay establecimientos — mostrar manual con aviso
+    select.style.display = 'none';
+    manual.style.display = 'block';
+    aviso.style.display = 'block';
+  }
+}
+
+function alSeleccionarOrigen() {
+  const select  = document.getElementById('c-origen-select');
+  const manual  = document.getElementById('c-origen-manual');
+  const aviso   = document.getElementById('c-origen-aviso');
+  const hidVal  = document.getElementById('c-origen-valor');
+  const hidRens = document.getElementById('c-origen-renspa');
+
+  if (select.value === '__manual__') {
+    manual.style.display = 'block';
+    aviso.style.display  = 'block';
+    manual.focus();
+    hidVal.value  = '';
+    hidRens.value = '';
+  } else {
+    manual.style.display = 'none';
+    aviso.style.display  = 'none';
+    manual.value = '';
+    const opt = select.options[select.selectedIndex];
+    hidVal.value  = select.value;
+    hidRens.value = opt ? opt.dataset.renspa || '' : '';
+  }
+}
+
 // ════════════════════════════════════════════════════
 //  GUARDAR OPERACIÓN
 // ════════════════════════════════════════════════════
@@ -1329,6 +1508,9 @@ async function guardarOperacion() {
     plazo_pago:   document.getElementById('c-plazo-pago').value  || null,
     f_pago:       null,
     f_cobro:      null,
+    origen:       (document.getElementById('c-origen-valor').value.trim() || 
+                  document.getElementById('c-origen-manual').value.trim()) || null,
+    origen_renspa: document.getElementById('c-origen-renspa').value.trim() || null,
     observaciones:document.getElementById('c-obs').value.trim(),
     estado:       'pendiente',
     notificada:   true,
@@ -1371,8 +1553,15 @@ async function guardarOperacion() {
 }
 
 function limpiarFormCarga() {
-  ['c-f-carga','c-cant','c-kgs','c-vta','c-liq','c-obs','c-comprador','c-planta','c-titular']
-    .forEach(id => document.getElementById(id).value = '');
+  ['c-f-carga','c-cant','c-kgs','c-vta','c-liq','c-obs','c-comprador','c-planta','c-titular','c-origen-manual']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  ['c-titular-id','c-comprador-id','c-origen-valor','c-origen-renspa'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  const origenSel = document.getElementById('c-origen-select');
+  if (origenSel) { origenSel.innerHTML = '<option value="">— Primero seleccioná vendedor —</option>'; }
+  const origenAviso = document.getElementById('c-origen-aviso');
+  if (origenAviso) origenAviso.style.display = 'none';
+  const origenManual = document.getElementById('c-origen-manual');
+  if (origenManual) origenManual.style.display = 'none';
   ['c-operador','c-cat','c-raza','c-destino','c-acu-comp','c-acu-vend','c-por','c-plazo-cobro','c-plazo-pago']
     .forEach(id => document.getElementById(id).value = '');
   // Resetear cantidad de cargas a 1
