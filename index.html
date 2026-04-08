@@ -1356,8 +1356,21 @@ let establecimientosCache = [];
 
 async function cargarMaestroClientes() {
   if (clientesCache.length > 0) return;
-  const { data } = await sb.from('clientes').select('id_cta_auxi, nombre').order('nombre');
-  clientesCache = data || [];
+  let todos = [];
+  let desde = 0;
+  const PAGINA = 1000;
+  while (true) {
+    const { data } = await sb.from('clientes')
+      .select('id_cta_auxi, nombre')
+      .order('nombre')
+      .range(desde, desde + PAGINA - 1);
+    if (!data || data.length === 0) break;
+    todos = todos.concat(data);
+    if (data.length < PAGINA) break;
+    desde += PAGINA;
+  }
+  clientesCache = todos;
+  console.log('Clientes cargados:', clientesCache.length);
 }
 
 async function cargarEstablecimientos(idCtaAuxi) {
