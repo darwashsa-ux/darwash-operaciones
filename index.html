@@ -741,11 +741,13 @@
             </select>
           </div>
           <div class="field">
-            <label>Destino</label>
-            <select id="c-destino">
-              <option value="">—</option>
-              <option value="Cons">Cons</option>
-              <option value="UE">UE</option>
+            <label>Destino *</label>
+            <select id="c-destino" onchange="alCambiarDestino()">
+              <option value="">— Seleccioná —</option>
+              <option value="Faena Cons">Faena Cons</option>
+              <option value="Faena UE">Faena UE</option>
+              <option value="Invernada">Invernada</option>
+              <option value="Feria">Feria</option>
             </select>
           </div>
 
@@ -760,9 +762,14 @@
             <input type="hidden" id="c-comprador-id">
           </div>
 
+          <!-- PLANTA con dropdown si el comprador tiene plantas vinculadas -->
           <div class="field">
             <label>Planta</label>
+            <select id="c-planta-select" onchange="alSeleccionarPlanta()" style="display:none">
+              <option value="">— Seleccioná planta —</option>
+            </select>
             <input type="text" id="c-planta" placeholder="Ej: G CATAN">
+            <input type="hidden" id="c-planta-valor">
           </div>
         </div>
       </div>
@@ -1409,7 +1416,8 @@ function seleccionarCliente(inputId, listId, idCtaAuxi, nombre) {
   document.getElementById(inputId).value = nombre;
   document.getElementById(inputId + '-id').value = idCtaAuxi;
   cerrarDropdown(listId);
-  if (inputId === 'c-titular') cargarOrigenVendedor(idCtaAuxi);
+  if (inputId === 'c-titular')   cargarOrigenVendedor(idCtaAuxi);
+  if (inputId === 'c-comprador') cargarPlantasComprador(idCtaAuxi);
 }
 
 function cerrarDropdown(listId) {
@@ -1417,6 +1425,120 @@ function cerrarDropdown(listId) {
   if (el) el.style.display = 'none';
 }
 
+
+async function cargarPlantasComprador(idCtaAuxi) {
+  // Solo cargamos si ya hay destino seleccionado
+  const destino = document.getElementById('c-destino').value;
+  if (!destino) return;
+  await actualizarPlantaPorDestino(destino, idCtaAuxi);
+}
+
+async function alCambiarDestino() {
+  const destino    = document.getElementById('c-destino').value;
+  const compradorId = document.getElementById('c-comprador-id').value;
+  resetearCampoPlanta();
+  if (!destino || !compradorId) return;
+  await actualizarPlantaPorDestino(destino, parseInt(compradorId));
+}
+
+function resetearCampoPlanta() {
+  const select = document.getElementById('c-planta-select');
+  const manual = document.getElementById('c-planta');
+  const hidVal = document.getElementById('c-planta-valor');
+  select.innerHTML = '<option value="">— Seleccioná —</option>';
+  select.style.display = 'none';
+  manual.style.display = 'block';
+  manual.value = '';
+  hidVal.value = '';
+}
+
+async function actualizarPlantaPorDestino(destino, idCtaAuxi) {
+  const select = document.getElementById('c-planta-select');
+  const manual = document.getElementById('c-planta');
+  const hidVal = document.getElementById('c-planta-valor');
+
+  select.innerHTML = '<option value="">— Seleccioná —</option>';
+  hidVal.value = '';
+
+  if (destino === 'Faena Cons' || destino === 'Faena UE') {
+    // Buscar plantas faenaadoras
+    const { data } = await sb.from('compradores_plantas')
+      .select('planta_faenadora, localidad')
+      .eq('id_cta_auxi', idCtaAuxi)
+      .order('planta_faenadora');
+
+    if (data && data.length > 0) {
+      data.forEach(p => {
+        const op = document.createElement('option');
+        op.value = p.planta_faenadora;
+        op.textContent = p.planta_faenadora + (p.localidad ? ' — ' + p.localidad : '');
+        select.appendChild(op);
+      });
+      agregarOpcionManual(select);
+      select.style.display = 'block';
+      manual.style.display = 'none';
+      manual.value = '';
+    } else {
+      select.style.display = 'none';
+      manual.style.display = 'block';
+      manual.placeholder = 'Nombre de la planta faenadora';
+    }
+
+  } else if (destino === 'Invernada') {
+    // Buscar establecimientos agropecuarios
+    const { data } = await sb.from('clientes_establecimientos')
+      .select('establecimiento, localidad, renspa')
+      .eq('id_cta_auxi', idCtaAuxi)
+      .order('establecimiento');
+
+    if (data && data.length > 0) {
+      data.forEach(e => {
+        const op = document.createElement('option');
+        op.value = e.establecimiento;
+        op.textContent = e.establecimiento + (e.localidad ? ' — ' + e.localidad : '') + (e.renspa ? ' [' + e.renspa + ']' : '');
+        select.appendChild(op);
+      });
+      agregarOpcionManual(select);
+      select.style.display = 'block';
+      manual.style.display = 'none';
+      manual.value = '';
+    } else {
+      select.style.display = 'none';
+      manual.style.display = 'block';
+      manual.placeholder = 'Nombre del establecimiento';
+    }
+
+  } else if (destino === 'Feria') {
+    // Feria siempre es texto libre
+    select.style.display = 'none';
+    manual.style.display = 'block';
+    manual.placeholder = 'Nombre de la feria';
+  }
+}
+
+function agregarOpcionManual(select) {
+  const op = document.createElement('option');
+  op.value = '__manual__';
+  op.textContent = '+ Ingresar manualmente';
+  select.appendChild(op);
+}
+
+function alSeleccionarPlanta() {
+  const select = document.getElementById('c-planta-select');
+  const manual = document.getElementById('c-planta');
+  const hidVal = document.getElementById('c-planta-valor');
+
+  if (select.value === '__manual__') {
+    manual.style.display = 'block';
+    manual.value = '';
+    manual.focus();
+    hidVal.value = '';
+  } else {
+    manual.style.display = 'none';
+    manual.value = select.value;
+    hidVal.value = select.value;
+  }
+}
 async function cargarOrigenVendedor(idCtaAuxi) {
   const select  = document.getElementById('c-origen-select');
   const manual  = document.getElementById('c-origen-manual');
@@ -1568,7 +1690,10 @@ async function guardarOperacion() {
 function limpiarFormCarga() {
   ['c-f-carga','c-cant','c-kgs','c-vta','c-liq','c-obs','c-comprador','c-planta','c-titular','c-origen-manual']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
-  ['c-titular-id','c-comprador-id','c-origen-valor','c-origen-renspa'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  ['c-titular-id','c-comprador-id','c-origen-valor','c-origen-renspa','c-planta-valor'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  const plantaSel = document.getElementById('c-planta-select');
+  if (plantaSel) { plantaSel.innerHTML = '<option value="">— Seleccioná planta —</option>'; plantaSel.style.display = 'none'; }
+  const plantaManual = document.getElementById('c-planta'); if(plantaManual) plantaManual.style.display = 'block';
   const origenSel = document.getElementById('c-origen-select');
   if (origenSel) { origenSel.innerHTML = '<option value="">— Primero seleccioná vendedor —</option>'; }
   const origenAviso = document.getElementById('c-origen-aviso');
