@@ -1761,9 +1761,15 @@ let opsCache  = []; // cache para filtros client-side
 async function cargarSeguimiento() {
   document.getElementById('tabla-seguimiento').innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
   const { data: ops } = await sb.from('operaciones')
-    .select('id, numero, f_carga, titular, por, cant, cat, raza, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie, peso_neto, f_pesada, cant_real, cat_real), romaneos(kg_carne_total)')
+    .select('id, numero, f_carga, titular, por, cant, cat, raza, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie, peso_neto, f_pesada, cant_real, cat_real)')
     .order('numero', { ascending: false });
-  opsCache = ops || [];
+  const opIds = (ops || []).map(o => o.id);
+  const { data: roms } = opIds.length
+    ? await sb.from('romaneos').select('operacion_id, kg_carne_total').in('operacion_id', opIds)
+    : { data: [] };
+  const romMap = {};
+  (roms || []).forEach(r => { romMap[r.operacion_id] = r; });
+  opsCache = (ops || []).map(op => ({ ...op, _rom: romMap[op.id] || null }));
   aplicarFiltros();
 }
 
@@ -2110,7 +2116,7 @@ function renderTablaOps(ops, detallado) {
       <td class="col-dte" style="font-family:var(--mono);font-size:11px;color:var(--accent)">${op.seguimiento?.[0]?.nro_dte || '—'}</td>
       <td class="col-kg" style="font-family:var(--mono);font-size:12px">${op.seguimiento?.[0]?.kg_pie ? Number(op.seguimiento[0].kg_pie).toLocaleString('es-AR') : '—'}</td>
       <td class="col-kg" style="font-family:var(--mono);font-size:12px;color:${op.seguimiento?.[0]?.peso_neto ? 'var(--accent2)' : 'var(--text2)'}">${op.seguimiento?.[0]?.peso_neto ? Number(op.seguimiento[0].peso_neto).toLocaleString('es-AR') + ' kg' : '—'}</td>
-      <td class="col-kg" style="font-family:var(--mono);font-size:12px;color:${op.romaneos?.[0]?.kg_carne_total ? '#4ade80' : 'var(--text2)'}">${op.romaneos?.[0]?.kg_carne_total ? Number(op.romaneos[0].kg_carne_total).toLocaleString('es-AR') + ' kg' : '—'}</td>
+      <td class="col-kg" style="font-family:var(--mono);font-size:12px;color:${op._rom?.kg_carne_total ? '#4ade80' : 'var(--text2)'}">${op._rom?.kg_carne_total ? Number(op._rom.kg_carne_total).toLocaleString('es-AR') + ' kg' : '—'}</td>
       <td>${['admin','jefe'].includes(usuario?.rol) ? `<button onclick="event.stopPropagation();duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer" title="Duplicar">⧉ DUP</button>` : ''}</td>
     </tr>`).join('');
 
