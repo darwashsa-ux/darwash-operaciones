@@ -2491,9 +2491,10 @@ async function abrirDetalleOperacion(opId) {
   document.body.style.overflow = 'hidden';
   const { data: op } = await sb.from('operaciones').select('*').eq('id', opId).single();
   const { data: seg } = await sb.from('seguimiento').select('*').eq('operacion_id', opId).single();
+  const { data: rom } = await sb.from('romaneos').select('cabezas_faenadas, kg_carne_total, rendimiento_pct, kilos_vivos, fecha_faena, tropa_nro').eq('operacion_id', opId).maybeSingle();
   document.getElementById('modal-op-num').textContent = '#' + op.numero + ' — ' + op.f_carga;
   document.getElementById('modal-op-title').textContent = op.titular + ' → ' + op.comprador + (op.planta ? ' (' + op.planta + ')' : '');
-  renderModalDetalle(op, seg);
+  renderModalDetalle(op, seg, rom);
   renderModalArchivos(op, seg);
   renderModalHistorial(op, seg);
 }
@@ -2519,7 +2520,7 @@ function fmt(v) { return v || '<span style="color:var(--text2)">&#8212;</span>';
 function fmtPeso(v) { return v ? Number(v).toLocaleString('es-AR') + ' kg' : '<span style="color:var(--text2)">&#8212;</span>'; }
 function fmtMoney(v) { return v ? '$' + Number(v).toLocaleString('es-AR') : '<span style="color:var(--text2)">&#8212;</span>'; }
 
-function renderModalDetalle(op, seg) {
+function renderModalDetalle(op, seg, rom) {
   document.getElementById('modal-tab-detalle').innerHTML =
     '<div class="detail-section"><div class="detail-section-title">Operación</div>' +
     '<div class="detail-grid">' +
@@ -2558,7 +2559,19 @@ function renderModalDetalle(op, seg) {
       '<div class="detail-item"><div class="detail-item-label">N° DTE</div><div class="detail-item-value" style="color:var(--accent)">' + seg.nro_dte + '</div></div>' +
       (seg.f_dte ? '<div class="detail-item"><div class="detail-item-label">Fecha DTE</div><div class="detail-item-value">' + seg.f_dte + '</div></div>' : '') +
       '</div></div>' : '') +
-    (op.observaciones ? '<div class="detail-section"><div class="detail-section-title">Observaciones</div><div style="font-size:13px;color:var(--text);line-height:1.6">' + op.observaciones + '</div></div>' : '');
+    (op.observaciones ? '<div class="detail-section"><div class="detail-section-title">Observaciones</div><div style="font-size:13px;color:var(--text);line-height:1.6">' + op.observaciones + '</div></div>' : '') +
+    (rom ?
+      '<div class="detail-section"><div class="detail-section-title" style="color:#4ade80">🥩 Romaneo</div>' +
+      '<div class="detail-grid">' +
+      (seg && seg.cant_real ? '<div class="detail-item"><div class="detail-item-label">Cab. enviadas</div><div class="detail-item-value">' + seg.cant_real + '</div></div>' : '') +
+      '<div class="detail-item"><div class="detail-item-label">Cab. faenadas</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + rom.cabezas_faenadas + '</div></div>' +
+      '<div class="detail-item"><div class="detail-item-label">Kg carne</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + Number(rom.kg_carne_total).toLocaleString('es-AR') + ' kg</div></div>' +
+      '<div class="detail-item"><div class="detail-item-label">Rendimiento</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + Number(rom.rendimiento_pct).toFixed(2) + '%</div></div>' +
+      (rom.kilos_vivos ? '<div class="detail-item"><div class="detail-item-label">Kg vivos</div><div class="detail-item-value">' + Number(rom.kilos_vivos).toLocaleString('es-AR') + ' kg</div></div>' : '') +
+      (rom.fecha_faena ? '<div class="detail-item"><div class="detail-item-label">Fecha faena</div><div class="detail-item-value">' + rom.fecha_faena + '</div></div>' : '') +
+      (rom.tropa_nro ? '<div class="detail-item"><div class="detail-item-label">Tropa</div><div class="detail-item-value">' + rom.tropa_nro + '</div></div>' : '') +
+      '</div></div>'
+    : '');
 }
 
 function renderModalArchivos(op, seg) {
