@@ -2779,16 +2779,6 @@ window.onload = async () => {
   // Aplicar tema guardado antes de mostrar nada
   aplicarTemaGuardado();
 
-  // Detectar si viene de un link de recupero de contraseña — ANTES de cualquier otra cosa
-  const hash = window.location.hash;
-  if (hash.includes('type=recovery')) {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display = 'none';
-    document.getElementById('reset-screen').style.display = 'flex';
-    history.replaceState(null, '', window.location.pathname);
-    return; // Parar acá, no seguir con el resto del onload
-  }
-
   // Escuchar evento de sesión para detectar recupero de contraseña
   sb.auth.onAuthStateChange((event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
