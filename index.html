@@ -1210,6 +1210,39 @@ let usuario = null;
 // ════════════════════════════════════════════════════
 //  AUTENTICACIÓN — Supabase Auth
 // ════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════
+//  RESET PASSWORD
+// ════════════════════════════════════════════════════
+async function cambiarPassword() {
+  const pass1 = document.getElementById('reset-password').value;
+  const pass2 = document.getElementById('reset-password2').value;
+  const errEl = document.getElementById('reset-error');
+
+  if (!pass1 || pass1.length < 6) {
+    errEl.textContent = 'La contraseña debe tener al menos 6 caracteres';
+    return;
+  }
+  if (pass1 !== pass2) {
+    errEl.textContent = 'Las contraseñas no coinciden';
+    return;
+  }
+
+  errEl.textContent = '';
+  const { error } = await sb.auth.updateUser({ password: pass1 });
+
+  if (error) {
+    errEl.textContent = '❌ ' + error.message;
+    return;
+  }
+
+  // Contraseña cambiada OK — ir al login
+  document.getElementById('reset-screen').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-error').textContent = '✅ Contraseña actualizada. Ingresá con tu nueva contraseña.';
+  document.getElementById('login-error').style.color = 'var(--accent)';
+}
+
 async function iniciarSesion() {
   const email    = document.getElementById('login-email').value.trim();
   const password = document.getElementById('login-password').value;
@@ -2745,6 +2778,22 @@ function aplicarTemaGuardado() {
 window.onload = async () => {
   // Aplicar tema guardado antes de mostrar nada
   aplicarTemaGuardado();
+
+  // Detectar si viene de un link de recupero de contraseña
+  const hash = window.location.hash;
+  if (hash.includes('type=recovery') || hash.includes('error=access_denied') && hash.includes('otp_expired')) {
+    // Limpiar el hash de la URL
+    history.replaceState(null, '', window.location.pathname);
+  }
+
+  // Escuchar evento de sesión para detectar recupero de contraseña
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('reset-screen').style.display = 'flex';
+    }
+  });
 
   // Verificar si hay sesión activa en Supabase
   const { data: { session } } = await sb.auth.getSession();
