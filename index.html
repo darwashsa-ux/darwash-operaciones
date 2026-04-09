@@ -1761,7 +1761,7 @@ let opsCache  = []; // cache para filtros client-side
 async function cargarSeguimiento() {
   document.getElementById('tabla-seguimiento').innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
   const { data: ops } = await sb.from('operaciones')
-    .select('id, numero, f_carga, titular, por, cant, cat, raza, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie, peso_neto, f_pesada)')
+    .select('id, numero, f_carga, titular, por, cant, cat, raza, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie, peso_neto, f_pesada, cant_real, cat_real)')
     .order('numero', { ascending: false });
   opsCache = ops || [];
   aplicarFiltros();
@@ -2091,7 +2091,12 @@ function renderTablaOps(ops, detallado) {
       <td class="col-fecha" style="font-family:var(--mono);font-size:12px;color:var(--text2)">${op.f_carga || '—'}</td>
       <td class="col-consig"><span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--accent2);background:var(--bg3);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">${op.por || '—'}</span></td>
       <td class="col-vendor" style="font-weight:500;color:var(--white)">${op.titular || '—'}</td>
-      <td class="col-hac"><span style="font-family:var(--mono);font-size:12px">${op.cant || '?'}</span> <strong style="color:var(--white)">${op.cat || ''}</strong> <span style="color:var(--text2);font-size:11px">${op.raza || ''}</span></td>
+      <td class="col-hac">
+        <span style="font-family:var(--mono);font-size:12px">${op.seguimiento?.[0]?.cant_real || op.cant || '?'}</span>
+        <strong style="color:var(--white)">${op.seguimiento?.[0]?.cat_real || op.cat || ''}</strong>
+        <span style="color:var(--text2);font-size:11px">${op.raza || ''}</span>
+        ${op.seguimiento?.[0]?.cant_real ? '<span style="color:var(--text2);font-size:10px;display:block;font-family:var(--mono)">est. ' + (op.cant||'?') + '</span>' : ''}
+      </td>
       <td class="col-comp"><span style="font-weight:500">${op.comprador || '—'}</span> <span style="color:var(--text2);font-size:11px">${op.planta ? '('+op.planta+')' : ''}</span></td>
       <td class="col-dest"><span style="font-family:var(--mono);font-size:11px;padding:2px 6px;background:var(--bg3);border-radius:4px">${op.destino || '—'}</span></td>
       <td class="col-acu" style="font-family:var(--mono);font-size:11px;color:var(--text2)">${op.acuerdo_comp || '—'}</td>
