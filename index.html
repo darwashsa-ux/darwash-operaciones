@@ -17,6 +17,15 @@
 <link rel="apple-touch-icon" href="icon.svg">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // Detectar recovery token ANTES de que Supabase procese la sesión
+  (function() {
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      sessionStorage.setItem('darwash_recovery', '1');
+    }
+  })();
+</script>
 <!-- Firebase -->
 <script type="module">
   import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
@@ -2778,6 +2787,15 @@ function aplicarTemaGuardado() {
 window.onload = async () => {
   // Aplicar tema guardado antes de mostrar nada
   aplicarTemaGuardado();
+
+  // Detectar si viene de recovery
+  if (sessionStorage.getItem('darwash_recovery') === '1') {
+    sessionStorage.removeItem('darwash_recovery');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('reset-screen').style.display = 'flex';
+    return;
+  }
 
   // Escuchar evento de sesión para detectar recupero de contraseña
   sb.auth.onAuthStateChange((event, session) => {
