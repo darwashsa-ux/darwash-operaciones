@@ -2071,6 +2071,7 @@ function renderTablaOps(ops, detallado) {
     <th class="col-kg">Kg Pie</th>
       <th class="col-kg" style="color:var(--accent2)">Kg Balanza</th>
       <th class="col-kg" style="color:#4ade80">Kg Carne</th>
+      <th class="col-kg" style="color:#4ade80">Rinde</th>
     <th style="width:60px"></th>`;
 
   const rowsDashboard = ops.map(op => `
@@ -2119,6 +2120,14 @@ function renderTablaOps(ops, detallado) {
       <td class="col-kg" style="font-family:var(--mono);font-size:12px">${op.seguimiento?.[0]?.kg_pie ? Number(op.seguimiento[0].kg_pie).toLocaleString('es-AR') : '—'}</td>
       <td class="col-kg" style="font-family:var(--mono);font-size:12px;color:${op.seguimiento?.[0]?.peso_neto ? 'var(--accent2)' : 'var(--text2)'}">${op.seguimiento?.[0]?.peso_neto ? Number(op.seguimiento[0].peso_neto).toLocaleString('es-AR') + ' kg' : '—'}</td>
       <td class="col-kg" style="font-family:var(--mono);font-size:12px;color:${op._rom?.kg_carne_total ? '#4ade80' : 'var(--text2)'}">${op._rom?.kg_carne_total ? Number(op._rom.kg_carne_total).toLocaleString('es-AR') + ' kg' : '—'}</td>
+      <td class="col-kg">${(() => {
+        const kgCarne = op._rom?.kg_carne_total;
+        const kgNeto = op.seguimiento?.[0]?.peso_neto;
+        if (!kgCarne || !kgNeto) return '<span style="color:var(--text2)">—</span>';
+        const rinde = (Number(kgCarne) / Number(kgNeto) * 100).toFixed(1);
+        const color = rinde >= 55 ? '#4ade80' : rinde >= 48 ? '#facc15' : '#f87171';
+        return '<span style="font-family:var(--mono);font-size:12px;font-weight:700;color:' + color + '">' + rinde + '%</span>';
+      })()}</td>
       <td>${['admin','jefe'].includes(usuario?.rol) ? `<button onclick="event.stopPropagation();duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer" title="Duplicar">⧉ DUP</button>` : ''}</td>
     </tr>`).join('');
 
