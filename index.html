@@ -1929,6 +1929,13 @@ async function cargarPablo() {
       <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--accent2);text-transform:uppercase;margin-bottom:10px">🚛 Datos del Transporte</div>
       <div class="form-grid" style="gap:12px">
         <div class="field">
+          <label>Tipo de camión</label>
+          <select id="pablo-camion-${op.id}" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px;width:100%">
+            <option value="simple">🚛 SIMPLE (hasta ~31 cab)</option>
+            <option value="doble">🚛🚛 DOBLE (más de ~31 cab)</option>
+          </select>
+        </div>
+        <div class="field">
           <label>Empresa transportista</label>
           <input type="text" id="pablo-transp-${op.id}" placeholder="Ej: Transportes García">
         </div>
@@ -1954,6 +1961,7 @@ async function confirmarPablo(opId, numero) {
   const cat      = document.getElementById(`pablo-cat-${opId}`).value;
   const kg       = document.getElementById(`pablo-kg-${opId}`).value;
   const obs      = document.getElementById(`pablo-obs-${opId}`).value;
+  const camion   = document.getElementById(`pablo-camion-${opId}`).value;
   const transp   = document.getElementById(`pablo-transp-${opId}`).value.trim();
   const chofer   = document.getElementById(`pablo-chofer-${opId}`).value.trim();
   const fSalida  = document.getElementById(`pablo-fsalida-${opId}`).value;
@@ -1972,6 +1980,7 @@ async function confirmarPablo(opId, numero) {
     kg_pie:         parseFloat(kg)    || null,
     obs_carga:      obs               || null,
     f_pablo:        new Date().toISOString(),
+    tipo_camion:    camion            || 'simple',
     transportista:  transp            || null,
     chofer:         chofer            || null,
     f_salida:       fSalida           || null,
