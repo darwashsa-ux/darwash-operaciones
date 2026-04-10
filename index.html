@@ -1091,6 +1091,32 @@
       </div>
     </div>
 
+    <!-- ── PAGE: PARÁMETROS ── -->
+    <div class="page" id="page-parametros">
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title">⚙ Gastos Fijos</div>
+        <div id="alert-parametros"></div>
+        <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:16px">
+          <div class="field"><label>Pesada ($)</label><input type="number" id="p-pesada" placeholder="20000"></div>
+          <div class="field"><label>Guía SENASA ($ × cab)</label><input type="number" id="p-senasa" placeholder="1758.24" step="0.01"></div>
+          <div class="field"><label>Guía Comuna ($ × cab)</label><input type="number" id="p-comuna" placeholder="1100" step="0.01"></div>
+          <div class="field"><label>Arranque flete corto ($)</label><input type="number" id="p-arranque" placeholder="110000"></div>
+          <div class="field"><label>Flete km SIMPLE ($ × km)</label><input type="number" id="p-km-simple" placeholder="2800"></div>
+          <div class="field"><label>Flete km DOBLE ($ × km)</label><input type="number" id="p-km-doble" placeholder="3300"></div>
+          <div class="field"><label>Distancia corta (km)</label><input type="number" id="p-dist-corta" placeholder="250"></div>
+        </div>
+        <button onclick="guardarParametros()" style="margin-top:20px;font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:10px 24px;background:var(--success);border:none;border-radius:6px;color:#000;cursor:pointer;font-weight:700">💾 GUARDAR PARÁMETROS</button>
+      </div>
+
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:0">🚛 Plantas y Distancias</div>
+          <button onclick="nuevaPlanta()" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:6px 14px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer">+ AGREGAR</button>
+        </div>
+        <div id="tabla-plantas"></div>
+      </div>
+    </div>
+
   </div><!-- /main -->
 
   <!-- MODAL EDITAR OPERACIÓN (solo jefe/admin, solo pendientes) -->
@@ -1319,6 +1345,7 @@ const TABS_POR_ROL = {
     { id: 'pablo',       label: '✓ Confirmaciones' },
     { id: 'dte',         label: '📄 DTE' },
     { id: 'usuarios',    label: '👤 Usuarios' },
+    { id: 'parametros',  label: '⚙ Parámetros' },
   ],
   jefe: [
     { id: 'dashboard',   label: '▸ Dashboard' },
@@ -1374,6 +1401,7 @@ function cambiarTab(pageId, tabEl) {
   if (pageId === 'pablo')       cargarPablo();
   if (pageId === 'dte')         cargarDTE();
   if (pageId === 'usuarios')    cargarUsuarios();
+  if (pageId === 'parametros')  cargarParametros();
 }
 
 // ════════════════════════════════════════════════════
@@ -2988,6 +3016,81 @@ window.onload = async () => {
       .catch(err => console.log('SW error:', err));
   }
 };
+
+// ════════════════════════════════════════════════════
+//  PARÁMETROS (solo admin)
+// ════════════════════════════════════════════════════
+async function cargarParametros() {
+  // Gastos fijos
+  const { data: p } = await sb.from('parametros_costos').select('*').eq('id', 1).single();
+  if (p) {
+    document.getElementById('p-pesada').value     = p.pesada;
+    document.getElementById('p-senasa').value     = p.guia_senasa;
+    document.getElementById('p-comuna').value     = p.guia_comuna;
+    document.getElementById('p-arranque').value   = p.flete_arranque;
+    document.getElementById('p-km-simple').value  = p.flete_km_simple;
+    document.getElementById('p-km-doble').value   = p.flete_km_doble;
+    document.getElementById('p-dist-corta').value = p.flete_distancia_corta;
+  }
+  // Tabla plantas
+  const { data: plantas } = await sb.from('plantas_distancias').select('*').order('planta');
+  const el = document.getElementById('tabla-plantas');
+  if (!plantas?.length) { el.innerHTML = '<div class="alert info">Sin plantas cargadas</div>'; return; }
+  el.innerHTML = `<table class="ops-table"><thead><tr>
+    <th>Planta</th><th>Km</th><th>Frigo</th><th>Activa</th><th style="width:80px"></th>
+  </tr></thead><tbody>` +
+  plantas.map(p => `<tr>
+    <td style="font-weight:500">${p.planta}</td>
+    <td style="font-family:var(--mono);color:var(--accent2)">${p.km ?? '—'} km</td>
+    <td style="font-family:var(--mono);font-size:11px">${p.frigo_codigo ?? '—'}</td>
+    <td><span style="color:${p.activo ? 'var(--success)' : 'var(--text2)'}">${p.activo ? '✓' : '✗'}</span></td>
+    <td><button onclick="editarPlanta(${p.id},'${p.planta.replace(/'/g,"\\'")}',${p.km??0},'${p.frigo_codigo??''}')" 
+      style="font-family:var(--mono);font-size:9px;padding:3px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer">✎ EDITAR</button></td>
+  </tr>`).join('') + '</tbody></table>';
+}
+
+async function guardarParametros() {
+  const payload = {
+    pesada:               parseFloat(document.getElementById('p-pesada').value),
+    guia_senasa:          parseFloat(document.getElementById('p-senasa').value),
+    guia_comuna:          parseFloat(document.getElementById('p-comuna').value),
+    flete_arranque:       parseFloat(document.getElementById('p-arranque').value),
+    flete_km_simple:      parseFloat(document.getElementById('p-km-simple').value),
+    flete_km_doble:       parseFloat(document.getElementById('p-km-doble').value),
+    flete_distancia_corta:parseInt(document.getElementById('p-dist-corta').value),
+    updated_at:           new Date().toISOString()
+  };
+  const { error } = await sb.from('parametros_costos').update(payload).eq('id', 1);
+  const al = document.getElementById('alert-parametros');
+  if (error) { al.innerHTML = '<div class="alert danger">Error: ' + error.message + '</div>'; return; }
+  al.innerHTML = '<div class="alert success">✓ Parámetros guardados correctamente</div>';
+  setTimeout(() => al.innerHTML = '', 3000);
+}
+
+function editarPlanta(id, planta, km, frigo) {
+  const nueva_planta = prompt('Nombre de la planta:', planta);
+  if (!nueva_planta) return;
+  const nuevo_km = prompt('Distancia en km:', km);
+  const nuevo_frigo = prompt('Código frigorífico (ej: COTO, QKF, RIO):', frigo);
+  sb.from('plantas_distancias').update({
+    planta: nueva_planta,
+    km: parseInt(nuevo_km) || null,
+    frigo_codigo: nuevo_frigo || null
+  }).eq('id', id).then(() => cargarParametros());
+}
+
+function nuevaPlanta() {
+  const planta = prompt('Nombre de la planta:');
+  if (!planta) return;
+  const km = prompt('Distancia en km:');
+  const frigo = prompt('Código frigorífico (ej: COTO, QKF, RIO):');
+  sb.from('plantas_distancias').insert([{
+    planta,
+    km: parseInt(km) || null,
+    frigo_codigo: frigo || null,
+    activo: true
+  }]).then(() => cargarParametros());
+}
 </script>
 </body>
 </html>
