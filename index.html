@@ -2645,40 +2645,37 @@ function renderModalRomaneo(op, seg, rom) {
       '</div>' +
       '<div class="detail-grid">' +
       '<div class="detail-item"><div class="detail-item-label">Cab. Faenadas</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + (rom.cabezas_faenadas||'—') + '</div></div>' +
-      '<div class="detail-item"><div class="detail-item-label">Kg Vivos</div><div class="detail-item-value">' + (rom.kilos_vivos ? Number(rom.kilos_vivos).toLocaleString('es-AR') + ' kg' : '—') + '</div></div>' +
       '<div class="detail-item"><div class="detail-item-label">Kg Carne</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + (rom.kg_carne_total ? Number(rom.kg_carne_total).toLocaleString('es-AR') + ' kg' : '—') + '</div></div>' +
       '<div class="detail-item"><div class="detail-item-label">Kg Decomisos</div><div class="detail-item-value">' + (rom.kg_decomisos ? Number(rom.kg_decomisos).toLocaleString('es-AR') + ' kg' : '—') + '</div></div>' +
-      '<div class="detail-item"><div class="detail-item-label">Rendimiento</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + (rom.rendimiento_pct ? Number(rom.rendimiento_pct).toFixed(2) + '%' : '—') + '</div></div>' +
+      '<div class="detail-item"><div class="detail-item-label">Rinde s/balanza</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + (seg?.peso_neto && rom.kg_carne_total ? (Number(rom.kg_carne_total) / Number(seg.peso_neto) * 100).toFixed(2) + '%' : '—') + '</div></div>' +
       '<div class="detail-item"><div class="detail-item-label">Fecha Faena</div><div class="detail-item-value">' + (rom.fecha_faena||'—') + '</div></div>' +
       '<div class="detail-item"><div class="detail-item-label">Nro. Tropa</div><div class="detail-item-value">' + (rom.tropa_nro||'—') + '</div></div>' +
       '</div></div>';
   } else {
     // SIN ROMANEO — mostrar formulario de carga
     el.innerHTML = '<div class="detail-section"><div class="detail-section-title" style="color:#4ade80">🥩 Cargar Romaneo</div>' +
-      formRomaneo(op.id, null) + '</div>';
-    cargarFrigorificos();
+      formRomaneo(op.id, null, seg) + '</div>';
   }
 }
 
-function formRomaneo(opId, rom) {
+function formRomaneo(opId, rom, seg) {
+  const rinde = seg?.peso_neto && rom?.kg_carne_total
+    ? (Number(rom.kg_carne_total) / Number(seg.peso_neto) * 100).toFixed(2) + '%'
+    : '—';
   return '<div id="form-romaneo" style="margin-top:12px">' +
     '<div class="detail-grid">' +
-    '<div class="detail-item"><div class="detail-item-label">Frigorífico</div>' +
-    '<select id="rom-frig" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"><option value="">Cargando...</option></select></div>' +
     '<div class="detail-item"><div class="detail-item-label">Fecha Faena</div>' +
     '<input type="date" id="rom-fecha" value="' + (rom?.fecha_faena||'') + '" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
     '<div class="detail-item"><div class="detail-item-label">Nro. Tropa</div>' +
     '<input type="text" id="rom-tropa" value="' + (rom?.tropa_nro||'') + '" placeholder="ej: 10814" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
     '<div class="detail-item"><div class="detail-item-label">Cab. Faenadas</div>' +
     '<input type="number" id="rom-cabezas" value="' + (rom?.cabezas_faenadas||'') + '" placeholder="0" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
-    '<div class="detail-item"><div class="detail-item-label">Kg Vivos</div>' +
-    '<input type="number" id="rom-kgvivos" value="' + (rom?.kilos_vivos||'') + '" placeholder="0" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
-    '<div class="detail-item"><div class="detail-item-label">Kg Carne</div>' +
-    '<input type="number" id="rom-kgcarne" value="' + (rom?.kg_carne_total||'') + '" placeholder="0" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:#4ade80;font-size:13px"></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Kg Carne ⭐</div>' +
+    '<input type="number" id="rom-kgcarne" value="' + (rom?.kg_carne_total||'') + '" placeholder="0" oninput="actualizarRinde(this,' + (seg?.peso_neto||0) + ')" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:#4ade80;font-size:13px;font-weight:600"></div>' +
     '<div class="detail-item"><div class="detail-item-label">Kg Decomisos</div>' +
     '<input type="number" id="rom-kgdec" value="' + (rom?.kg_decomisos||0) + '" placeholder="0" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
-    '<div class="detail-item"><div class="detail-item-label">Rendimiento %</div>' +
-    '<input type="number" step="0.01" id="rom-rinde" value="' + (rom?.rendimiento_pct||'') + '" placeholder="0.00" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Rinde s/balanza</div>' +
+    '<div id="rom-rinde-display" style="padding:8px;font-family:var(--mono);color:#4ade80;font-weight:600;font-size:14px">' + rinde + '</div></div>' +
     '</div>' +
     '<div style="margin-top:16px;display:flex;gap:10px">' +
     '<button onclick="guardarRomaneo(' + opId + (rom ? ',\'' + rom.id + '\'' : '') + ')" style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:10px 20px;background:var(--success);border:none;border-radius:6px;color:#000;cursor:pointer;font-weight:700">💾 GUARDAR</button>' +
@@ -2694,26 +2691,29 @@ async function cargarFrigorificos() {
     (frigs||[]).map(f => '<option value="' + f.id + '">' + f.nombre + '</option>').join('');
 }
 
+function actualizarRinde(input, pesoNeto) {
+  const kgCarne = parseFloat(input.value) || 0;
+  const el = document.getElementById('rom-rinde-display');
+  if (!el) return;
+  el.textContent = kgCarne && pesoNeto ? (kgCarne / pesoNeto * 100).toFixed(2) + '%' : '—';
+}
+
 async function editarRomaneo(opId) {
   const { data: rom } = await sb.from('romaneos').select('*').eq('operacion_id', opId).maybeSingle();
+  const { data: seg } = await sb.from('seguimiento').select('peso_neto').eq('operacion_id', opId).maybeSingle();
   const el = document.getElementById('modal-tab-romaneo');
   el.innerHTML = '<div class="detail-section"><div class="detail-section-title" style="color:#4ade80">✏ Editar Romaneo</div>' +
-    formRomaneo(opId, rom) + '</div>';
-  await cargarFrigorificos();
-  if (rom?.frigorifico_id) document.getElementById('rom-frig').value = rom.frigorifico_id;
+    formRomaneo(opId, rom, seg) + '</div>';
 }
 
 async function guardarRomaneo(opId, romId) {
   const payload = {
     operacion_id: opId,
-    frigorifico_id: document.getElementById('rom-frig').value || null,
     fecha_faena:    document.getElementById('rom-fecha').value || null,
     tropa_nro:      document.getElementById('rom-tropa').value || null,
     cabezas_faenadas: parseInt(document.getElementById('rom-cabezas').value) || null,
-    kilos_vivos:    document.getElementById('rom-kgvivos').value || null,
     kg_carne_total: document.getElementById('rom-kgcarne').value || null,
     kg_decomisos:   parseFloat(document.getElementById('rom-kgdec').value) || 0,
-    rendimiento_pct: document.getElementById('rom-rinde').value || null,
     estado: 'procesado',
     mail_origen: 'manual'
   };
