@@ -3096,8 +3096,8 @@ async function renderModalCosteo(op, seg, rom) {
     <!-- FORMULARIO -->
     <div class="detail-grid">
       <div class="detail-item">
-        <div class="detail-item-label">Precio x Kg Carne ($) ⭐</div>
-        ${inp('precio', precio, '#facc15')}
+        <div class="detail-item-label">💰 Total Venta $ ⭐</div>
+        ${inp('total', cos?.total_venta || '', '#facc15')}
       </div>
       <div class="detail-item">
         <div class="detail-item-label">Flete total ($) ${fleteAuto ? '<span style="color:var(--text2);font-size:10px">auto: ' + fmtM(fleteAuto) + '</span>' : ''}</div>
@@ -3119,12 +3119,12 @@ async function renderModalCosteo(op, seg, rom) {
 
     <!-- PREVIEW RESULTADO -->
     <div id="cos-preview" style="margin-top:16px;background:var(--bg3);border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px">
-      <div style="color:var(--text2);font-size:10px;letter-spacing:1px;margin-bottom:8px">PREVIEW (ingresá el precio para calcular)</div>
-      <div style="color:var(--text2)">Completá el precio por kg carne para ver el resultado</div>
+      <div style="color:var(--text2);font-size:10px;letter-spacing:1px;margin-bottom:8px">PREVIEW</div>
+      <div style="color:var(--text2)">Ingresá el total de venta para calcular</div>
     </div>
 
     <div style="margin-top:16px">
-      <button onclick="calcularPreviewCosteo(${op.id},${kgCarne||0},${kgBalanza||0},${cabezas})"
+      <button onclick="calcularPreviewCosteo(${kgCarne||0},${kgBalanza||0},${cabezas})"
         style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:8px 18px;background:transparent;border:1px solid var(--accent2);border-radius:6px;color:var(--accent2);cursor:pointer;margin-right:10px">
         🔢 CALCULAR
       </button>
@@ -3174,19 +3174,18 @@ function renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas) {
   </div>`;
 }
 
-function calcularPreviewCosteo(opId, kgCarne, kgBalanza, cabezas) {
-  const precio  = parseFloat(document.getElementById('cos-precio')?.value) || 0;
-  const flete   = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
-  const pesada  = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
-  const senasa  = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
-  const comuna  = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
+function calcularPreviewCosteo(kgCarne, kgBalanza, cabezas) {
+  const totalVenta = parseFloat(document.getElementById('cos-total')?.value) || 0;
+  const flete      = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
+  const pesada     = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
+  const senasa     = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
+  const comuna     = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
 
-  if (!precio || !kgCarne) {
-    document.getElementById('cos-preview').innerHTML = '<div style="color:var(--text2);font-size:12px;font-family:var(--mono)">Ingresá precio y asegurate de tener el romaneo cargado</div>';
+  if (!totalVenta) {
+    document.getElementById('cos-preview').innerHTML = '<div style="color:var(--text2);font-size:12px;font-family:var(--mono)">Ingresá el total de venta para calcular</div>';
     return;
   }
 
-  const totalVenta  = precio * kgCarne;
   const totalCostos = flete + pesada + senasa + comuna;
   const neto        = totalVenta - totalCostos;
   const fmtM = v => '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
@@ -3196,9 +3195,10 @@ function calcularPreviewCosteo(opId, kgCarne, kgBalanza, cabezas) {
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-family:var(--mono);font-size:12px">
       <div><span style="color:var(--text2)">Total Venta:</span> <strong style="color:#facc15">${fmtM(totalVenta)}</strong></div>
       <div><span style="color:var(--text2)">Total Costos:</span> <strong style="color:var(--danger)">${fmtM(totalCostos)}</strong></div>
+      ${kgCarne ? `<div><span style="color:var(--text2)">$ x Kg Carne:</span> <strong>${fmtM(totalVenta/kgCarne)}</strong></div>` : ''}
       ${kgBalanza ? `<div><span style="color:var(--text2)">$ x Kg Balanza:</span> <strong>${fmtM(totalVenta/kgBalanza)}</strong></div>` : ''}
-      <div><span style="color:var(--text2)">$ x Cabeza:</span> <strong>${fmtM(totalVenta/cabezas)}</strong></div>
-      ${kgCarne ? `<div><span style="color:var(--text2)">$ x Kg Carne (costo):</span> <strong>${fmtM(totalCostos/kgCarne)}</strong></div>` : ''}
+      ${cabezas ? `<div><span style="color:var(--text2)">$ x Cabeza:</span> <strong>${fmtM(totalVenta/cabezas)}</strong></div>` : ''}
+      ${kgCarne ? `<div><span style="color:var(--text2)">Costo x Kg Carne:</span> <strong style="color:var(--danger)">${fmtM(totalCostos/kgCarne)}</strong></div>` : ''}
     </div>
     <div style="margin-top:12px;text-align:center;font-size:18px;font-weight:700;color:${neto>=0?'#4ade80':'var(--danger)'}">
       NETO: ${neto>=0?'+':''}${fmtM(neto)}
@@ -3206,20 +3206,20 @@ function calcularPreviewCosteo(opId, kgCarne, kgBalanza, cabezas) {
 }
 
 async function guardarCosteo(opId, kgCarne, kgBalanza, cabezas) {
-  const precio  = parseFloat(document.getElementById('cos-precio')?.value);
-  const flete   = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
-  const pesada  = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
-  const senasa  = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
-  const comuna  = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
+  const totalVenta = parseFloat(document.getElementById('cos-total')?.value);
+  const flete      = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
+  const pesada     = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
+  const senasa     = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
+  const comuna     = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
 
-  if (!precio) { alert('Ingresá el precio por kg carne'); return; }
+  if (!totalVenta) { alert('Ingresá el total de venta'); return; }
 
-  const totalVenta  = precio * kgCarne;
   const totalCostos = flete + pesada + senasa + comuna;
+  const precioXKgCarne = kgCarne ? totalVenta / kgCarne : null;
 
   const payload = {
     operacion_id:   opId,
-    precio_venta:   precio,
+    precio_venta:   precioXKgCarne,
     total_venta:    totalVenta,
     flete,
     pesada,
