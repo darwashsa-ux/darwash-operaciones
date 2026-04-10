@@ -1190,12 +1190,14 @@
           <div class="modal-tab active" onclick="cambiarModalTab('detalle',this)">&#x1F4CB; Detalle</div>
           <div class="modal-tab" onclick="cambiarModalTab('archivos',this)">&#x1F4C1; Archivos</div>
           <div class="modal-tab" onclick="cambiarModalTab('historial',this)">&#x1F4CA; Historial</div>
+          <div class="modal-tab" onclick="cambiarModalTab('romaneo',this)">&#x1F969; Romaneo</div>
         </div>
       </div>
       <div class="modal-body">
         <div id="modal-tab-detalle"></div>
         <div id="modal-tab-archivos" style="display:none"></div>
         <div id="modal-tab-historial" style="display:none"></div>
+        <div id="modal-tab-romaneo" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -2499,27 +2501,28 @@ async function abrirDetalleOperacion(opId) {
   document.body.style.overflow = 'hidden';
   const { data: op } = await sb.from('operaciones').select('*').eq('id', opId).single();
   const { data: seg } = await sb.from('seguimiento').select('*').eq('operacion_id', opId).single();
-  const { data: rom } = await sb.from('romaneos').select('cabezas_faenadas, kg_carne_total, rendimiento_pct, kilos_vivos, fecha_faena, tropa_nro').eq('operacion_id', opId).maybeSingle();
+  const { data: rom } = await sb.from('romaneos').select('*').eq('operacion_id', opId).maybeSingle();
   document.getElementById('modal-op-num').textContent = '#' + op.numero + ' — ' + op.f_carga;
   document.getElementById('modal-op-title').textContent = op.titular + ' → ' + op.comprador + (op.planta ? ' (' + op.planta + ')' : '');
   renderModalDetalle(op, seg, rom);
   renderModalArchivos(op, seg);
   renderModalHistorial(op, seg);
+  renderModalRomaneo(op, seg, rom);
 }
 
 function cerrarModalDetalle() {
   document.getElementById('modal-detalle').classList.remove('open');
   document.body.style.overflow = '';
   document.querySelectorAll('.modal-tab').forEach((t,i) => t.classList.toggle('active', i===0));
-  document.getElementById('modal-tab-detalle').style.display = '';
-  document.getElementById('modal-tab-archivos').style.display = 'none';
-  document.getElementById('modal-tab-historial').style.display = 'none';
+  ['detalle','archivos','historial','romaneo'].forEach((t,i) => {
+    document.getElementById('modal-tab-' + t).style.display = i === 0 ? '' : 'none';
+  });
 }
 
 function cambiarModalTab(tab, el) {
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['detalle','archivos','historial'].forEach(t => {
+  ['detalle','archivos','historial','romaneo'].forEach(t => {
     document.getElementById('modal-tab-' + t).style.display = t === tab ? '' : 'none';
   });
 }
@@ -2624,6 +2627,117 @@ function renderModalHistorial(op, seg) {
     '</div>';
 }
 
+
+// ════════════════════════════════════════════════════
+//  MODAL TAB — ROMANEO
+// ════════════════════════════════════════════════════
+function renderModalRomaneo(op, seg, rom) {
+  const { data: frigs } = { data: [] }; // se carga async abajo
+  const el = document.getElementById('modal-tab-romaneo');
+
+  if (rom) {
+    // YA TIENE ROMANEO — mostrar datos + botón editar
+    el.innerHTML =
+      '<div class="detail-section">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+      '<div class="detail-section-title" style="color:#4ade80;margin-bottom:0">🥩 Datos del Romaneo</div>' +
+      '<button onclick="editarRomaneo(' + op.id + ')" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer">✏ EDITAR</button>' +
+      '</div>' +
+      '<div class="detail-grid">' +
+      '<div class="detail-item"><div class="detail-item-label">Cab. Faenadas</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + (rom.cabezas_faenadas||'—') + '</div></div>' +
+      '<div class="detail-item"><div class="detail-item-label">Kg Vivos</div><div class="detail-item-value">' + (rom.kilos_vivos ? Number(rom.kilos_vivos).toLocaleString('es-AR') + ' kg' : '—') + '</div></div>' +
+      '<div class="detail-item"><div class="detail-item-label">Kg Carne</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + (rom.kg_carne_total ? Number(rom.kg_carne_total).toLocaleString('es-AR') + ' kg' : '—') + '</div></div>' +
+      '<div class="detail-item"><div class="detail-item-label">Kg Decomisos</div><div class="detail-item-value">' + (rom.kg_decomisos ? Number(rom.kg_decomisos).toLocaleString('es-AR') + ' kg' : '—') + '</div></div>' +
+      '<div class="detail-item"><div class="detail-item-label">Rendimiento</div><div class="detail-item-value" style="color:#4ade80;font-weight:600">' + (rom.rendimiento_pct ? Number(rom.rendimiento_pct).toFixed(2) + '%' : '—') + '</div></div>' +
+      '<div class="detail-item"><div class="detail-item-label">Fecha Faena</div><div class="detail-item-value">' + (rom.fecha_faena||'—') + '</div></div>' +
+      '<div class="detail-item"><div class="detail-item-label">Nro. Tropa</div><div class="detail-item-value">' + (rom.tropa_nro||'—') + '</div></div>' +
+      '</div></div>';
+  } else {
+    // SIN ROMANEO — mostrar formulario de carga
+    el.innerHTML = '<div class="detail-section"><div class="detail-section-title" style="color:#4ade80">🥩 Cargar Romaneo</div>' +
+      formRomaneo(op.id, null) + '</div>';
+    cargarFrigorificos();
+  }
+}
+
+function formRomaneo(opId, rom) {
+  return '<div id="form-romaneo" style="margin-top:12px">' +
+    '<div class="detail-grid">' +
+    '<div class="detail-item"><div class="detail-item-label">Frigorífico</div>' +
+    '<select id="rom-frig" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"><option value="">Cargando...</option></select></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Fecha Faena</div>' +
+    '<input type="date" id="rom-fecha" value="' + (rom?.fecha_faena||'') + '" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Nro. Tropa</div>' +
+    '<input type="text" id="rom-tropa" value="' + (rom?.tropa_nro||'') + '" placeholder="ej: 10814" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Cab. Faenadas</div>' +
+    '<input type="number" id="rom-cabezas" value="' + (rom?.cabezas_faenadas||'') + '" placeholder="0" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Kg Vivos</div>' +
+    '<input type="number" id="rom-kgvivos" value="' + (rom?.kilos_vivos||'') + '" placeholder="0" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Kg Carne</div>' +
+    '<input type="number" id="rom-kgcarne" value="' + (rom?.kg_carne_total||'') + '" placeholder="0" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:#4ade80;font-size:13px"></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Kg Decomisos</div>' +
+    '<input type="number" id="rom-kgdec" value="' + (rom?.kg_decomisos||0) + '" placeholder="0" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
+    '<div class="detail-item"><div class="detail-item-label">Rendimiento %</div>' +
+    '<input type="number" step="0.01" id="rom-rinde" value="' + (rom?.rendimiento_pct||'') + '" placeholder="0.00" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px"></div>' +
+    '</div>' +
+    '<div style="margin-top:16px;display:flex;gap:10px">' +
+    '<button onclick="guardarRomaneo(' + opId + (rom ? ',\'' + rom.id + '\'' : '') + ')" style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:10px 20px;background:var(--success);border:none;border-radius:6px;color:#000;cursor:pointer;font-weight:700">💾 GUARDAR</button>' +
+    (rom ? '<button onclick="abrirDetalleOperacion(' + opId + ')" style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:10px 20px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer">✕ CANCELAR</button>' : '') +
+    '</div></div>';
+}
+
+async function cargarFrigorificos() {
+  const { data: frigs } = await sb.from('frigorificos').select('id, nombre, codigo').eq('activo', true).order('nombre');
+  const sel = document.getElementById('rom-frig');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">— Seleccioná frigorífico —</option>' +
+    (frigs||[]).map(f => '<option value="' + f.id + '">' + f.nombre + '</option>').join('');
+}
+
+async function editarRomaneo(opId) {
+  const { data: rom } = await sb.from('romaneos').select('*').eq('operacion_id', opId).maybeSingle();
+  const el = document.getElementById('modal-tab-romaneo');
+  el.innerHTML = '<div class="detail-section"><div class="detail-section-title" style="color:#4ade80">✏ Editar Romaneo</div>' +
+    formRomaneo(opId, rom) + '</div>';
+  await cargarFrigorificos();
+  if (rom?.frigorifico_id) document.getElementById('rom-frig').value = rom.frigorifico_id;
+}
+
+async function guardarRomaneo(opId, romId) {
+  const payload = {
+    operacion_id: opId,
+    frigorifico_id: document.getElementById('rom-frig').value || null,
+    fecha_faena:    document.getElementById('rom-fecha').value || null,
+    tropa_nro:      document.getElementById('rom-tropa').value || null,
+    cabezas_faenadas: parseInt(document.getElementById('rom-cabezas').value) || null,
+    kilos_vivos:    document.getElementById('rom-kgvivos').value || null,
+    kg_carne_total: document.getElementById('rom-kgcarne').value || null,
+    kg_decomisos:   parseFloat(document.getElementById('rom-kgdec').value) || 0,
+    rendimiento_pct: document.getElementById('rom-rinde').value || null,
+    estado: 'procesado',
+    mail_origen: 'manual'
+  };
+  let error;
+  if (romId) {
+    ({ error } = await sb.from('romaneos').update(payload).eq('id', romId));
+  } else {
+    ({ error } = await sb.from('romaneos').insert([payload]));
+    if (!error) {
+      // actualizar seguimiento romaneo=true
+      await sb.from('seguimiento').update({ romaneo: true, f_romaneo: new Date().toISOString().split('T')[0] }).eq('operacion_id', opId);
+    }
+  }
+  if (error) { alert('Error al guardar: ' + error.message); return; }
+  // recargar el modal completo
+  await abrirDetalleOperacion(opId);
+  // ir a la pestaña romaneo
+  const tabs = document.querySelectorAll('.modal-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  tabs[3].classList.add('active');
+  ['detalle','archivos','historial','romaneo'].forEach((t,i) => {
+    document.getElementById('modal-tab-' + t).style.display = i === 3 ? '' : 'none';
+  });
+}
 
 // ════════════════════════════════════════════════════
 //  CARGA EXCEPCIONAL (Pablo)
