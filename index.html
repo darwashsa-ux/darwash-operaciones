@@ -3060,6 +3060,9 @@ async function renderModalCosteo(op, seg, rom) {
   // Traer costeo existente
   const { data: cos } = await sb.from('costeos').select('*').eq('operacion_id', op.id).maybeSingle();
 
+  // Precio pactado desde la operación
+  const precioPactado = op.vta ? Number(op.vta) : null;
+
   // Valores a mostrar (costeo guardado o calculados)
   const precio     = cos?.precio_venta || null;
   const flete      = cos?.flete || fleteAuto;
@@ -3098,6 +3101,10 @@ async function renderModalCosteo(op, seg, rom) {
       <div class="detail-item">
         <div class="detail-item-label">💰 Total Venta $ ⭐</div>
         ${inp('total', cos?.total_venta || '', '#facc15')}
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Precio pactado x Kg Carne ${precioPactado ? '<span style="color:var(--text2);font-size:10px">desde op: $'+Number(precioPactado).toLocaleString('es-AR')+'</span>' : ''}</div>
+        ${inp('pactado', cos?.precio_pactado || precioPactado || '', 'var(--accent2)')}
       </div>
       <div class="detail-item">
         <div class="detail-item-label">Flete total ($) ${fleteAuto ? '<span style="color:var(--text2);font-size:10px">auto: ' + fmtM(fleteAuto) + '</span>' : ''}</div>
@@ -3141,13 +3148,16 @@ function renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas) {
   const totalVenta  = Number(cos.total_venta);
   const totalCostos = Number(cos.total_costos);
   const neto        = totalVenta - totalCostos;
+  const dif         = cos.dif_consignataria ? Number(cos.dif_consignataria) : null;
   const fmtM = v => '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
   return `
   <div class="detail-grid">
-    <div class="detail-item"><div class="detail-item-label">Precio x Kg Carne</div>
-      <div class="detail-item-value" style="color:#facc15;font-weight:700">${fmtM(cos.precio_venta)}</div></div>
     <div class="detail-item"><div class="detail-item-label">Total Venta</div>
       <div class="detail-item-value" style="color:#facc15;font-weight:700">${fmtM(totalVenta)}</div></div>
+    <div class="detail-item"><div class="detail-item-label">$ x Kg Carne real</div>
+      <div class="detail-item-value">${cos.precio_venta ? fmtM(cos.precio_venta) : '—'}</div></div>
+    ${cos.precio_pactado ? `<div class="detail-item"><div class="detail-item-label">$ x Kg Carne pactado</div>
+      <div class="detail-item-value" style="color:var(--accent2)">${fmtM(cos.precio_pactado)}</div></div>` : ''}
     <div class="detail-item"><div class="detail-item-label">$ x Kg Balanza</div>
       <div class="detail-item-value">${kgBalanza ? fmtM(totalVenta/kgBalanza) : '—'}</div></div>
     <div class="detail-item"><div class="detail-item-label">$ x Cabeza</div>
@@ -3161,33 +3171,41 @@ function renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas) {
     <div class="detail-item"><div class="detail-item-label">Guía Comuna</div><div class="detail-item-value">${fmtM(cos.guia_comuna)}</div></div>
     <div class="detail-item"><div class="detail-item-label">Total Costos</div>
       <div class="detail-item-value" style="color:var(--danger);font-weight:600">${fmtM(totalCostos)}</div></div>
-    <div class="detail-item"><div class="detail-item-label">$ x Kg Carne (costo)</div>
+    <div class="detail-item"><div class="detail-item-label">Costo x Kg Carne</div>
       <div class="detail-item-value">${kgCarne ? fmtM(totalCostos/kgCarne) : '—'}</div></div>
   </div>
-  <div style="height:1px;background:var(--border);margin:12px 0"></div>
+  ${dif != null ? `
+  <div style="margin:12px 0;padding:10px 14px;border-radius:6px;background:${dif>=0?'rgba(74,222,128,0.1)':'rgba(248,113,113,0.1)'};border:1px solid ${dif>=0?'#4ade80':'var(--danger)'}">
+    <span style="font-family:var(--mono);font-size:11px;color:var(--text2)">DIF consignataria: </span>
+    <strong style="font-family:var(--mono);font-size:14px;color:${dif>=0?'#4ade80':'var(--danger)'}">${dif>=0?'+':''}${fmtM(dif)}</strong>
+    <span style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-left:8px">(${dif>=0?'a favor':'en contra'})</span>
+  </div>` : ''}
   <div style="background:var(--bg3);border-radius:8px;padding:14px;text-align:center">
     <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:6px">RESULTADO NETO</div>
     <div style="font-size:22px;font-weight:700;color:${neto>=0?'#4ade80':'var(--danger)'}">
       ${neto>=0?'+':''}${fmtM(neto)}
     </div>
-    ${cos.dif_consignataria ? `<div style="font-size:12px;color:var(--text2);margin-top:4px;font-family:var(--mono)">DIF consignataria: ${fmtM(cos.dif_consignataria)}</div>` : ''}
   </div>`;
 }
 
 function calcularPreviewCosteo(kgCarne, kgBalanza, cabezas) {
-  const totalVenta = parseFloat(document.getElementById('cos-total')?.value) || 0;
-  const flete      = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
-  const pesada     = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
-  const senasa     = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
-  const comuna     = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
+  const totalVenta  = parseFloat(document.getElementById('cos-total')?.value) || 0;
+  const pactado     = parseFloat(document.getElementById('cos-pactado')?.value) || 0;
+  const flete       = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
+  const pesada      = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
+  const senasa      = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
+  const comuna      = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
 
   if (!totalVenta) {
     document.getElementById('cos-preview').innerHTML = '<div style="color:var(--text2);font-size:12px;font-family:var(--mono)">Ingresá el total de venta para calcular</div>';
     return;
   }
 
-  const totalCostos = flete + pesada + senasa + comuna;
-  const neto        = totalVenta - totalCostos;
+  const totalCostos   = flete + pesada + senasa + comuna;
+  const neto          = totalVenta - totalCostos;
+  const precioReal    = kgCarne ? totalVenta / kgCarne : 0;
+  const totalPactado  = pactado && kgCarne ? pactado * kgCarne : null;
+  const dif           = totalPactado ? totalVenta - totalPactado : null;
   const fmtM = v => '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
 
   document.getElementById('cos-preview').innerHTML = `
@@ -3195,38 +3213,49 @@ function calcularPreviewCosteo(kgCarne, kgBalanza, cabezas) {
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-family:var(--mono);font-size:12px">
       <div><span style="color:var(--text2)">Total Venta:</span> <strong style="color:#facc15">${fmtM(totalVenta)}</strong></div>
       <div><span style="color:var(--text2)">Total Costos:</span> <strong style="color:var(--danger)">${fmtM(totalCostos)}</strong></div>
-      ${kgCarne ? `<div><span style="color:var(--text2)">$ x Kg Carne:</span> <strong>${fmtM(totalVenta/kgCarne)}</strong></div>` : ''}
+      ${kgCarne ? `<div><span style="color:var(--text2)">$ x Kg Carne real:</span> <strong>${fmtM(precioReal)}</strong></div>` : ''}
       ${kgBalanza ? `<div><span style="color:var(--text2)">$ x Kg Balanza:</span> <strong>${fmtM(totalVenta/kgBalanza)}</strong></div>` : ''}
       ${cabezas ? `<div><span style="color:var(--text2)">$ x Cabeza:</span> <strong>${fmtM(totalVenta/cabezas)}</strong></div>` : ''}
       ${kgCarne ? `<div><span style="color:var(--text2)">Costo x Kg Carne:</span> <strong style="color:var(--danger)">${fmtM(totalCostos/kgCarne)}</strong></div>` : ''}
     </div>
+    ${dif != null ? `
+    <div style="margin-top:10px;padding:8px 12px;border-radius:6px;background:${dif>=0?'rgba(74,222,128,0.1)':'rgba(248,113,113,0.1)'};border:1px solid ${dif>=0?'#4ade80':'var(--danger)'}">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text2)">DIF consignataria: </span>
+      <strong style="font-family:var(--mono);font-size:13px;color:${dif>=0?'#4ade80':'var(--danger)'}">${dif>=0?'+':''}${fmtM(dif)}</strong>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-left:8px">(${dif>=0?'a favor':'en contra'})</span>
+    </div>` : ''}
     <div style="margin-top:12px;text-align:center;font-size:18px;font-weight:700;color:${neto>=0?'#4ade80':'var(--danger)'}">
       NETO: ${neto>=0?'+':''}${fmtM(neto)}
     </div>`;
 }
 
 async function guardarCosteo(opId, kgCarne, kgBalanza, cabezas) {
-  const totalVenta = parseFloat(document.getElementById('cos-total')?.value);
-  const flete      = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
-  const pesada     = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
-  const senasa     = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
-  const comuna     = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
+  const totalVenta  = parseFloat(document.getElementById('cos-total')?.value);
+  const pactado     = parseFloat(document.getElementById('cos-pactado')?.value) || null;
+  const flete       = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
+  const pesada      = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
+  const senasa      = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
+  const comuna      = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
 
   if (!totalVenta) { alert('Ingresá el total de venta'); return; }
 
-  const totalCostos = flete + pesada + senasa + comuna;
-  const precioXKgCarne = kgCarne ? totalVenta / kgCarne : null;
+  const totalCostos       = flete + pesada + senasa + comuna;
+  const precioXKgCarne    = kgCarne ? totalVenta / kgCarne : null;
+  const totalPactado      = pactado && kgCarne ? pactado * kgCarne : null;
+  const difConsignataria  = totalPactado ? totalVenta - totalPactado : null;
 
   const payload = {
-    operacion_id:   opId,
-    precio_venta:   precioXKgCarne,
-    total_venta:    totalVenta,
+    operacion_id:       opId,
+    precio_venta:       precioXKgCarne,
+    precio_pactado:     pactado,
+    total_venta:        totalVenta,
     flete,
     pesada,
-    guia_senasa:    senasa,
-    guia_comuna:    comuna,
-    total_costos:   totalCostos,
-    resultado_neto: totalVenta - totalCostos,
+    guia_senasa:        senasa,
+    guia_comuna:        comuna,
+    total_costos:       totalCostos,
+    resultado_neto:     totalVenta - totalCostos,
+    dif_consignataria:  difConsignataria,
   };
 
   const { data: existing } = await sb.from('costeos').select('id').eq('operacion_id', opId).maybeSingle();
