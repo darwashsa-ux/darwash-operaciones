@@ -1217,6 +1217,7 @@
           <div class="modal-tab" onclick="cambiarModalTab('archivos',this)">&#x1F4C1; Archivos</div>
           <div class="modal-tab" onclick="cambiarModalTab('historial',this)">&#x1F4CA; Historial</div>
           <div class="modal-tab" onclick="cambiarModalTab('romaneo',this)">&#x1F969; Romaneo</div>
+          <div class="modal-tab" onclick="cambiarModalTab('costeo',this)">&#x1F4B0; Costeo</div>
         </div>
       </div>
       <div class="modal-body">
@@ -1224,6 +1225,7 @@
         <div id="modal-tab-archivos" style="display:none"></div>
         <div id="modal-tab-historial" style="display:none"></div>
         <div id="modal-tab-romaneo" style="display:none"></div>
+        <div id="modal-tab-costeo" style="display:none"></div>
       </div>
     </div>
   </div>
@@ -2554,13 +2556,14 @@ async function abrirDetalleOperacion(opId) {
   renderModalArchivos(op, seg);
   renderModalHistorial(op, seg);
   renderModalRomaneo(op, seg, rom);
+  renderModalCosteo(op, seg, rom);
 }
 
 function cerrarModalDetalle() {
   document.getElementById('modal-detalle').classList.remove('open');
   document.body.style.overflow = '';
   document.querySelectorAll('.modal-tab').forEach((t,i) => t.classList.toggle('active', i===0));
-  ['detalle','archivos','historial','romaneo'].forEach((t,i) => {
+  ['detalle','archivos','historial','romaneo','costeo'].forEach((t,i) => {
     document.getElementById('modal-tab-' + t).style.display = i === 0 ? '' : 'none';
   });
 }
@@ -2568,7 +2571,7 @@ function cerrarModalDetalle() {
 function cambiarModalTab(tab, el) {
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['detalle','archivos','historial','romaneo'].forEach(t => {
+  ['detalle','archivos','historial','romaneo','costeo'].forEach(t => {
     document.getElementById('modal-tab-' + t).style.display = t === tab ? '' : 'none';
   });
 }
@@ -3027,8 +3030,222 @@ window.onload = async () => {
 };
 
 // ════════════════════════════════════════════════════
-//  PARÁMETROS (solo admin)
+//  MODAL TAB — COSTEO
 // ════════════════════════════════════════════════════
+async function renderModalCosteo(op, seg, rom) {
+  const el = document.getElementById('modal-tab-costeo');
+  el.innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
+
+  // Traer parámetros y distancia de la planta
+  const { data: params } = await sb.from('parametros_costos').select('*').eq('id',1).single();
+  const { data: planta } = op.planta
+    ? await sb.from('plantas_distancias').select('km').ilike('planta', '%' + op.planta + '%').maybeSingle()
+    : { data: null };
+
+  const km         = planta?.km || null;
+  const tipoCamion = seg?.tipo_camion || 'simple';
+  const cabezas    = seg?.cant_real || op.cant || 0;
+  const kgCarne    = rom?.kg_carne_total ? Number(rom.kg_carne_total) : null;
+  const kgBalanza  = seg?.peso_neto ? Number(seg.peso_neto) : null;
+
+  // Calcular flete automático
+  let fleteAuto = null;
+  if (km && params) {
+    const tarifaKm = tipoCamion === 'doble' ? params.flete_km_doble : params.flete_km_simple;
+    fleteAuto = km > params.flete_distancia_corta
+      ? km * tarifaKm
+      : params.flete_arranque + (km * tarifaKm);
+  }
+
+  // Traer costeo existente
+  const { data: cos } = await sb.from('costeos').select('*').eq('operacion_id', op.id).maybeSingle();
+
+  // Valores a mostrar (costeo guardado o calculados)
+  const precio     = cos?.precio_venta || null;
+  const flete      = cos?.flete || fleteAuto;
+  const pesada     = cos?.pesada || params?.pesada || 20000;
+  const senasa     = cos?.guia_senasa || (params?.guia_senasa * cabezas) || null;
+  const comuna     = cos?.guia_comuna || (params?.guia_comuna * cabezas) || null;
+
+  const fmtM = v => v != null ? '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0}) : '—';
+  const inp  = (id, val, color='var(--white)') =>
+    `<input type="number" id="cos-${id}" value="${val||''}" placeholder="0"
+     style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:${color};font-size:13px">`;
+
+  el.innerHTML = `
+  <div class="detail-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="detail-section-title" style="color:#facc15;margin-bottom:0">💰 Costeo</div>
+      ${cos ? '<button onclick="editarCosteo('+op.id+')" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer">✏ EDITAR</button>' : ''}
+    </div>
+
+    ${!cos ? `
+    <!-- DATOS BASE (readonly) -->
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;font-family:var(--mono)">
+      <div style="color:var(--text2);margin-bottom:6px;font-size:10px;letter-spacing:1px">DATOS BASE</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div><span style="color:var(--text2)">Cabezas:</span> <strong>${cabezas}</strong></div>
+        <div><span style="color:var(--text2)">Kg Balanza:</span> <strong>${kgBalanza ? kgBalanza.toLocaleString('es-AR') : '—'}</strong></div>
+        <div><span style="color:var(--text2)">Kg Carne:</span> <strong style="color:#4ade80">${kgCarne ? kgCarne.toLocaleString('es-AR') : '—'}</strong></div>
+        <div><span style="color:var(--text2)">Planta:</span> <strong>${op.planta||'—'}</strong></div>
+        <div><span style="color:var(--text2)">Km:</span> <strong>${km ? km + ' km' : '—'}</strong></div>
+        <div><span style="color:var(--text2)">Camión:</span> <strong style="color:var(--accent2)">${tipoCamion.toUpperCase()}</strong></div>
+      </div>
+    </div>
+
+    <!-- FORMULARIO -->
+    <div class="detail-grid">
+      <div class="detail-item">
+        <div class="detail-item-label">Precio x Kg Carne ($) ⭐</div>
+        ${inp('precio', precio, '#facc15')}
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Flete total ($) ${fleteAuto ? '<span style="color:var(--text2);font-size:10px">auto: ' + fmtM(fleteAuto) + '</span>' : ''}</div>
+        ${inp('flete', flete)}
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Pesada ($)</div>
+        ${inp('pesada', pesada)}
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Guía SENASA ($) ${params ? '<span style="color:var(--text2);font-size:10px">'+cabezas+' cab × '+fmtM(params.guia_senasa)+'</span>' : ''}</div>
+        ${inp('senasa', senasa)}
+      </div>
+      <div class="detail-item">
+        <div class="detail-item-label">Guía Comuna ($) ${params ? '<span style="color:var(--text2);font-size:10px">'+cabezas+' cab × '+fmtM(params.guia_comuna)+'</span>' : ''}</div>
+        ${inp('comuna', comuna)}
+      </div>
+    </div>
+
+    <!-- PREVIEW RESULTADO -->
+    <div id="cos-preview" style="margin-top:16px;background:var(--bg3);border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px">
+      <div style="color:var(--text2);font-size:10px;letter-spacing:1px;margin-bottom:8px">PREVIEW (ingresá el precio para calcular)</div>
+      <div style="color:var(--text2)">Completá el precio por kg carne para ver el resultado</div>
+    </div>
+
+    <div style="margin-top:16px">
+      <button onclick="calcularPreviewCosteo(${op.id},${kgCarne||0},${kgBalanza||0},${cabezas})"
+        style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:8px 18px;background:transparent;border:1px solid var(--accent2);border-radius:6px;color:var(--accent2);cursor:pointer;margin-right:10px">
+        🔢 CALCULAR
+      </button>
+      <button onclick="guardarCosteo(${op.id},${kgCarne||0},${kgBalanza||0},${cabezas})"
+        style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:10px 20px;background:var(--success);border:none;border-radius:6px;color:#000;cursor:pointer;font-weight:700">
+        💾 GUARDAR
+      </button>
+    </div>
+    ` : renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas)}
+  </div>`;
+}
+
+function renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas) {
+  const totalVenta  = Number(cos.total_venta);
+  const totalCostos = Number(cos.total_costos);
+  const neto        = totalVenta - totalCostos;
+  const fmtM = v => '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+  return `
+  <div class="detail-grid">
+    <div class="detail-item"><div class="detail-item-label">Precio x Kg Carne</div>
+      <div class="detail-item-value" style="color:#facc15;font-weight:700">${fmtM(cos.precio_venta)}</div></div>
+    <div class="detail-item"><div class="detail-item-label">Total Venta</div>
+      <div class="detail-item-value" style="color:#facc15;font-weight:700">${fmtM(totalVenta)}</div></div>
+    <div class="detail-item"><div class="detail-item-label">$ x Kg Balanza</div>
+      <div class="detail-item-value">${kgBalanza ? fmtM(totalVenta/kgBalanza) : '—'}</div></div>
+    <div class="detail-item"><div class="detail-item-label">$ x Cabeza</div>
+      <div class="detail-item-value">${cabezas ? fmtM(totalVenta/cabezas) : '—'}</div></div>
+  </div>
+  <div style="height:1px;background:var(--border);margin:12px 0"></div>
+  <div class="detail-grid">
+    <div class="detail-item"><div class="detail-item-label">Flete</div><div class="detail-item-value">${fmtM(cos.flete)}</div></div>
+    <div class="detail-item"><div class="detail-item-label">Pesada</div><div class="detail-item-value">${fmtM(cos.pesada)}</div></div>
+    <div class="detail-item"><div class="detail-item-label">Guía SENASA</div><div class="detail-item-value">${fmtM(cos.guia_senasa)}</div></div>
+    <div class="detail-item"><div class="detail-item-label">Guía Comuna</div><div class="detail-item-value">${fmtM(cos.guia_comuna)}</div></div>
+    <div class="detail-item"><div class="detail-item-label">Total Costos</div>
+      <div class="detail-item-value" style="color:var(--danger);font-weight:600">${fmtM(totalCostos)}</div></div>
+    <div class="detail-item"><div class="detail-item-label">$ x Kg Carne (costo)</div>
+      <div class="detail-item-value">${kgCarne ? fmtM(totalCostos/kgCarne) : '—'}</div></div>
+  </div>
+  <div style="height:1px;background:var(--border);margin:12px 0"></div>
+  <div style="background:var(--bg3);border-radius:8px;padding:14px;text-align:center">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:6px">RESULTADO NETO</div>
+    <div style="font-size:22px;font-weight:700;color:${neto>=0?'#4ade80':'var(--danger)'}">
+      ${neto>=0?'+':''}${fmtM(neto)}
+    </div>
+    ${cos.dif_consignataria ? `<div style="font-size:12px;color:var(--text2);margin-top:4px;font-family:var(--mono)">DIF consignataria: ${fmtM(cos.dif_consignataria)}</div>` : ''}
+  </div>`;
+}
+
+function calcularPreviewCosteo(opId, kgCarne, kgBalanza, cabezas) {
+  const precio  = parseFloat(document.getElementById('cos-precio')?.value) || 0;
+  const flete   = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
+  const pesada  = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
+  const senasa  = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
+  const comuna  = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
+
+  if (!precio || !kgCarne) {
+    document.getElementById('cos-preview').innerHTML = '<div style="color:var(--text2);font-size:12px;font-family:var(--mono)">Ingresá precio y asegurate de tener el romaneo cargado</div>';
+    return;
+  }
+
+  const totalVenta  = precio * kgCarne;
+  const totalCostos = flete + pesada + senasa + comuna;
+  const neto        = totalVenta - totalCostos;
+  const fmtM = v => '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+
+  document.getElementById('cos-preview').innerHTML = `
+    <div style="color:var(--text2);font-size:10px;letter-spacing:1px;margin-bottom:10px;font-family:var(--mono)">PREVIEW RESULTADO</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-family:var(--mono);font-size:12px">
+      <div><span style="color:var(--text2)">Total Venta:</span> <strong style="color:#facc15">${fmtM(totalVenta)}</strong></div>
+      <div><span style="color:var(--text2)">Total Costos:</span> <strong style="color:var(--danger)">${fmtM(totalCostos)}</strong></div>
+      ${kgBalanza ? `<div><span style="color:var(--text2)">$ x Kg Balanza:</span> <strong>${fmtM(totalVenta/kgBalanza)}</strong></div>` : ''}
+      <div><span style="color:var(--text2)">$ x Cabeza:</span> <strong>${fmtM(totalVenta/cabezas)}</strong></div>
+      ${kgCarne ? `<div><span style="color:var(--text2)">$ x Kg Carne (costo):</span> <strong>${fmtM(totalCostos/kgCarne)}</strong></div>` : ''}
+    </div>
+    <div style="margin-top:12px;text-align:center;font-size:18px;font-weight:700;color:${neto>=0?'#4ade80':'var(--danger)'}">
+      NETO: ${neto>=0?'+':''}${fmtM(neto)}
+    </div>`;
+}
+
+async function guardarCosteo(opId, kgCarne, kgBalanza, cabezas) {
+  const precio  = parseFloat(document.getElementById('cos-precio')?.value);
+  const flete   = parseFloat(document.getElementById('cos-flete')?.value)  || 0;
+  const pesada  = parseFloat(document.getElementById('cos-pesada')?.value) || 0;
+  const senasa  = parseFloat(document.getElementById('cos-senasa')?.value) || 0;
+  const comuna  = parseFloat(document.getElementById('cos-comuna')?.value) || 0;
+
+  if (!precio) { alert('Ingresá el precio por kg carne'); return; }
+
+  const totalVenta  = precio * kgCarne;
+  const totalCostos = flete + pesada + senasa + comuna;
+
+  const payload = {
+    operacion_id:   opId,
+    precio_venta:   precio,
+    total_venta:    totalVenta,
+    flete,
+    pesada,
+    guia_senasa:    senasa,
+    guia_comuna:    comuna,
+    total_costos:   totalCostos,
+    resultado_neto: totalVenta - totalCostos,
+  };
+
+  const { data: existing } = await sb.from('costeos').select('id').eq('operacion_id', opId).maybeSingle();
+  const { error } = existing
+    ? await sb.from('costeos').update(payload).eq('operacion_id', opId)
+    : await sb.from('costeos').insert([payload]);
+
+  if (error) { alert('Error: ' + error.message); return; }
+
+  await sb.from('seguimiento').update({ costeo: true, f_costeo: new Date().toISOString().split('T')[0] }).eq('operacion_id', opId);
+  await abrirDetalleOperacion(opId);
+  // ir a tab costeo
+  const tabs = document.querySelectorAll('.modal-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  tabs[4].classList.add('active');
+  ['detalle','archivos','historial','romaneo','costeo'].forEach((t,i) => {
+    document.getElementById('modal-tab-' + t).style.display = i === 4 ? '' : 'none';
+  });
+}
 async function cargarParametros() {
   // Gastos fijos
   const { data: p } = await sb.from('parametros_costos').select('*').eq('id', 1).single();
