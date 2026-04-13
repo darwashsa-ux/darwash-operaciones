@@ -883,21 +883,6 @@
         <div class="card-title">③ Hacienda</div>
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))">
           <div class="field">
-            <label>Categoría *</label>
-            <select id="c-cat" onchange="actualizarSubcat('c-cat','c-subcat')">
-              <option value="">—</option>
-              <option>VQ</option><option>VA</option><option>NOV</option>
-              <option>TM</option><option>TH</option><option>TORO</option><option>TORITO</option>
-              <option>MEJ</option><option>VACA CON CRIA</option><option>VA PREÑADA</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Subcategoría</label>
-            <select id="c-subcat">
-              <option value="">—</option>
-            </select>
-          </div>
-          <div class="field">
             <label>Raza</label>
             <select id="c-raza">
               <option value="">—</option>
@@ -905,14 +890,29 @@
             </select>
           </div>
           <div class="field">
-            <label>Cantidad *</label>
-            <input type="number" id="c-cant" placeholder="Ej: 50">
-          </div>
-          <div class="field">
             <label>Kgs estimados</label>
             <input type="number" id="c-kgs" placeholder="Ej: 450">
           </div>
         </div>
+
+        <!-- TABLA MULTI-CATEGORÍA -->
+        <div style="margin-top:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2)">CATEGORÍAS / COMPOSICIÓN DEL LOTE</div>
+            <button type="button" onclick="agregarFilaCat()" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer">+ AGREGAR</button>
+          </div>
+          <div id="filas-cat"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:8px 12px;background:var(--bg3);border-radius:6px">
+            <span style="font-family:var(--mono);font-size:11px;color:var(--text2)">TOTAL</span>
+            <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent)" id="total-cab-display">0 cab</span>
+          </div>
+        </div>
+
+        <!-- Campos ocultos para compatibilidad -->
+        <input type="hidden" id="c-cat">
+        <input type="hidden" id="c-cant">
+        <input type="hidden" id="c-subcat">
+      </div>
       </div>
 
       <!-- SECCIÓN 4: Condiciones comerciales -->
@@ -1561,6 +1561,85 @@ function actualizarSubcat(catId, subcatId) {
   subcat.disabled = opts.length === 0;
 }
 
+// ── MULTI-CATEGORÍA NUEVA CARGA ──
+let filaCatIdx = 0;
+
+function agregarFilaCat(cat='', subcat='', cant='') {
+  const idx = filaCatIdx++;
+  const cats = ['VQ','VA','NOV','TM','TH','TORO','TORITO','MEJ','VACA CON CRIA','VA PREÑADA'];
+  const div = document.createElement('div');
+  div.id = `fila-cat-${idx}`;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 100px 36px;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = `
+    <select id="fcat-${idx}" onchange="actualizarSubcatFila(${idx})" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px;width:100%">
+      <option value="">— Categoría —</option>
+      ${cats.map(c => `<option ${c===cat?'selected':''}>${c}</option>`).join('')}
+    </select>
+    <select id="fsubcat-${idx}" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px;width:100%">
+      <option value="">— Subcat —</option>
+    </select>
+    <input type="number" id="fcant-${idx}" value="${cant}" placeholder="Cab" min="1"
+      oninput="actualizarTotalCab()"
+      style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--accent);font-family:var(--mono);font-size:13px;font-weight:600;width:100%">
+    <button type="button" onclick="eliminarFilaCat(${idx})" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--danger);cursor:pointer;padding:8px;font-size:14px">✕</button>`;
+  document.getElementById('filas-cat').appendChild(div);
+  // Si hay cat pre-cargada, poblar subcat
+  if (cat) {
+    actualizarSubcatFila(idx, subcat);
+  }
+  actualizarTotalCab();
+}
+
+function actualizarSubcatFila(idx, preselect='') {
+  const cat   = document.getElementById(`fcat-${idx}`)?.value || '';
+  const sel   = document.getElementById(`fsubcat-${idx}`);
+  if (!sel) return;
+  const opts  = SUBCATS[cat] || [];
+  sel.innerHTML = '<option value="">—</option>' + opts.map(o => `<option ${o===preselect?'selected':''}>${o}</option>`).join('');
+  sel.disabled  = opts.length === 0;
+}
+
+function eliminarFilaCat(idx) {
+  document.getElementById(`fila-cat-${idx}`)?.remove();
+  actualizarTotalCab();
+}
+
+function actualizarTotalCab() {
+  const total = leerCategorias().reduce((s, r) => s + (r.cant||0), 0);
+  document.getElementById('total-cab-display').textContent = total + ' cab';
+  // Actualizar campos ocultos para compatibilidad
+  const cats = leerCategorias().filter(r => r.cant > 0);
+  if (cats.length > 0) {
+    // Cat predominante = la de mayor cantidad
+    const pred = cats.sort((a,b) => b.cant - a.cant)[0];
+    document.getElementById('c-cat').value  = pred.cat;
+    document.getElementById('c-subcat').value = pred.subcat || '';
+    document.getElementById('c-cant').value = total;
+  }
+}
+
+function leerCategorias() {
+  const rows = [];
+  document.querySelectorAll('[id^="fila-cat-"]').forEach(div => {
+    const idx   = div.id.replace('fila-cat-','');
+    const cat   = document.getElementById(`fcat-${idx}`)?.value   || '';
+    const subcat= document.getElementById(`fsubcat-${idx}`)?.value|| '';
+    const cant  = parseInt(document.getElementById(`fcant-${idx}`)?.value) || 0;
+    if (cat) rows.push({ cat, subcat, cant });
+  });
+  return rows;
+}
+
+function resetearFilasCat() {
+  document.getElementById('filas-cat').innerHTML = '';
+  filaCatIdx = 0;
+  document.getElementById('total-cab-display').textContent = '0 cab';
+  document.getElementById('c-cat').value  = '';
+  document.getElementById('c-cant').value = '';
+  document.getElementById('c-subcat').value = '';
+  agregarFilaCat(); // empezar con una fila vacía
+}
+
 // ════════════════════════════════════════════════════
 //  AUTENTICACIÓN — Supabase Auth
 // ════════════════════════════════════════════════════
@@ -2040,6 +2119,7 @@ async function guardarOperacion() {
     cant:         parseInt(document.getElementById('c-cant').value)   || null,
     cat:          document.getElementById('c-cat').value,
     subcat:       document.getElementById('c-subcat').value || null,
+    categorias_json: leerCategorias().filter(r => r.cant > 0),
     raza:         document.getElementById('c-raza').value,
     kgs:          parseFloat(document.getElementById('c-kgs').value)  || null,
     destino:      document.getElementById('c-destino').value,
@@ -2116,6 +2196,8 @@ function limpiarFormCarga() {
   // Resetear subcat disabled
   const subcatEl = document.getElementById('c-subcat');
   if (subcatEl) { subcatEl.innerHTML = '<option value="">—</option>'; subcatEl.disabled = false; }
+  // Resetear filas de categorías
+  resetearFilasCat();
   // Resetear cantidad de cargas a 1
   const cantEl = document.getElementById('c-cant-cargas');
   if (cantEl) { cantEl.value = 1; actualizarLabelCargas(1); }
@@ -3380,6 +3462,9 @@ window.onload = async () => {
   const fCarga = document.getElementById('c-f-carga');
   if (fAnot)  fAnot.value  = hoy;
   if (fCarga) fCarga.value = hoy;
+
+  // Inicializar fila de categoría vacía en nueva carga
+  agregarFilaCat();
 
   // Registrar Service Worker para PWA
   if ('serviceWorker' in navigator) {
