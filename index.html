@@ -2580,18 +2580,22 @@ async function confirmarPablo(opId, numero) {
   }).eq('operacion_id', opId);
 
   // Notificación Telegram
-  const catDesc = cats.length > 1 ? cats.map(r => r.cant+' '+r.cat).join(' + ') : (cat || '?');
+  const { data: opData } = await sb.from('operaciones').select('titular, comprador, planta, destino, categorias_json').eq('id', opId).single();
+  const catDesc = cats.length > 1 ? cats.map(r => r.cant+' '+r.cat+(r.subcat?' '+r.subcat:'')).join(' + ') : (cat || '?');
   let msg  = `✅ *CARGA CONFIRMADA — Op #${numero}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
+  msg     += `👤 Vendedor: *${opData?.titular || '?'}*\n`;
   msg     += `🐄 Cab. reales: *${cantTotal}* — *${catDesc}*\n`;
   msg     += `⚖️ Kg pie: *${kg || '?'}*\n`;
+  msg     += `🏭 Destinatario: *${opData?.comprador || '?'}* (${opData?.planta || '?'})\n`;
+  msg     += `📦 Destino: *${opData?.destino || '?'}*\n`;
   if (transp)  msg += `🚛 Transporte: *${transp}*\n`;
   if (chofer)  msg += `👤 Chofer: *${chofer}*\n`;
-  if (hSalida) msg += `🕐 Salida: *${fSalida} ${hSalida}*\n`;
+  if (fSalida) msg += `🕐 Salida: *${fSalida}${hSalida ? ' ' + hSalida : ''}*\n`;
   if (obs)     msg += `📝 Obs: ${obs}\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
   msg     += `⚡ Emitir DTE a la brevedad.\n`;
-  msg     += `🔗 Link arribo chofer: ${linkArribo}`;
+  msg     += `🔗 Link arribo: ${linkArribo}`;
   for (const id of ADMINS_TG) await enviarTelegram(id, msg);
 
   mostrarAlerta('alert-pablo', 'success', `✅ Op #${numero} confirmada — <a href="${linkArribo}" target="_blank" style="color:var(--accent);text-decoration:underline">📋 Link arribo chofer</a>`);
@@ -2643,11 +2647,19 @@ async function emitirDTE(opId, numero) {
     updated_at: new Date()
   }).eq('operacion_id', opId);
 
+  const { data: opData } = await sb.from('operaciones').select('titular, comprador, planta, destino, cant, cat, categorias_json').eq('id', opId).single();
+  const catDesc = opData?.categorias_json?.length > 1
+    ? opData.categorias_json.map(r => r.cant+' '+r.cat).join(' + ')
+    : `${opData?.cant || '?'} ${opData?.cat || ''}`;
   let msg  = `📄 *DTE EMITIDO — Op #${numero}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
+  msg     += `👤 Vendedor: *${opData?.titular || '?'}*\n`;
+  msg     += `🐄 Hacienda: *${catDesc}*\n`;
+  msg     += `🏭 Destinatario: *${opData?.comprador || '?'}* (${opData?.planta || '?'})\n`;
+  msg     += `📦 Destino: *${opData?.destino || '?'}*\n`;
   msg     += `📝 N° DTE: *${nroDTE}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
-  msg     += `⏳ Hacienda en tránsito al frigorífico.`;
+  msg     += `🚛 Hacienda en tránsito.`;
   for (const id of ADMINS_TG) await enviarTelegram(id, msg);
 
   mostrarAlerta('alert-dte', 'success', `✅ DTE ${nroDTE} registrado para Op #${numero}`);
@@ -2808,13 +2820,16 @@ async function reenviarLinkTelegram(link, transportista, numero) {
 }
 
 function armarMensaje(op) {
+  const cats = op.categorias_json?.length > 1
+    ? op.categorias_json.map(r => r.cant + ' ' + r.cat + (r.subcat ? ' ' + r.subcat : '')).join(' + ')
+    : `${op.cant || '?'} ${op.cat || ''} ${op.subcat || ''} ${op.raza || ''}`.trim();
   let msg  = `🐄 *NUEVA CARGA REGISTRADA — #${op.numero}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
-  msg     += `📅 *${op.f_carga}* | Titular: *${op.titular}*\n`;
-  msg     += `🔢 *${op.cant || '?'} ${op.cat || ''} ${op.raza || ''}*\n`;
-  msg     += `🏭 *${op.comprador}* (${op.planta || '?'}) · ${op.destino || '?'}\n`;
-  if (op.acuerdo_comp) msg += `📋 Acuerdo comp: *${op.acuerdo_comp}* | $ *${op.vta || '?'}* | Plazo: *${op.plazo_cobro || '—'}*\n`;
-  if (op.acuerdo_vend) msg += `📋 Acuerdo vend: *${op.acuerdo_vend}* | $ *${op.liq_vta || '?'}*\n`;
+  msg     += `📅 *${op.f_carga}* | Consig: *${op.por || '—'}*\n`;
+  msg     += `👤 Vendedor: *${op.titular}*\n`;
+  msg     += `🔢 Hacienda: *${cats}*\n`;
+  msg     += `🏭 Destinatario: *${op.comprador}* (${op.planta || '?'})\n`;
+  msg     += `📦 Destino: *${op.destino || '?'}*\n`;
   if (op.observaciones) msg += `📝 ${op.observaciones}\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
   msg     += `⏳ Esperando confirmación de Pablo.`;
