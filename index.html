@@ -1213,7 +1213,8 @@
           <button class="modal-close" onclick="cerrarModalDetalle()">&#x2715;</button>
         </div>
         <div class="modal-tabs">
-          <div class="modal-tab active" onclick="cambiarModalTab('detalle',this)">&#x1F4CB; Detalle</div>
+          <div class="modal-tab active" onclick="cambiarModalTab('resumen',this)">&#x1F4CA; Resumen</div>
+          <div class="modal-tab" onclick="cambiarModalTab('detalle',this)">&#x1F4CB; Detalle</div>
           <div class="modal-tab" onclick="cambiarModalTab('archivos',this)">&#x1F4C1; Archivos</div>
           <div class="modal-tab" onclick="cambiarModalTab('historial',this)">&#x1F4CA; Historial</div>
           <div class="modal-tab" onclick="cambiarModalTab('pesada',this)">&#x2696; Pesada</div>
@@ -1222,7 +1223,8 @@
         </div>
       </div>
       <div class="modal-body">
-        <div id="modal-tab-detalle"></div>
+        <div id="modal-tab-resumen"></div>
+        <div id="modal-tab-detalle" style="display:none"></div>
         <div id="modal-tab-archivos" style="display:none"></div>
         <div id="modal-tab-historial" style="display:none"></div>
         <div id="modal-tab-pesada" style="display:none"></div>
@@ -2549,11 +2551,13 @@ function toggleTema() {
 async function abrirDetalleOperacion(opId) {
   document.getElementById('modal-detalle').classList.add('open');
   document.body.style.overflow = 'hidden';
-  const { data: op } = await sb.from('operaciones').select('*').eq('id', opId).single();
+  const { data: op }  = await sb.from('operaciones').select('*').eq('id', opId).single();
   const { data: seg } = await sb.from('seguimiento').select('*').eq('operacion_id', opId).single();
   const { data: rom } = await sb.from('romaneos').select('*').eq('operacion_id', opId).maybeSingle();
+  const { data: cos } = await sb.from('costeos').select('*').eq('operacion_id', opId).maybeSingle();
   document.getElementById('modal-op-num').textContent = '#' + op.numero + ' — ' + op.f_carga;
   document.getElementById('modal-op-title').textContent = op.titular + ' → ' + op.comprador + (op.planta ? ' (' + op.planta + ')' : '');
+  renderModalResumen(op, seg, rom, cos);
   renderModalDetalle(op, seg, rom);
   renderModalArchivos(op, seg);
   renderModalHistorial(op, seg);
@@ -2566,7 +2570,7 @@ function cerrarModalDetalle() {
   document.getElementById('modal-detalle').classList.remove('open');
   document.body.style.overflow = '';
   document.querySelectorAll('.modal-tab').forEach((t,i) => t.classList.toggle('active', i===0));
-  ['detalle','archivos','historial','pesada','romaneo','costeo'].forEach((t,i) => {
+  ['resumen','detalle','archivos','historial','pesada','romaneo','costeo'].forEach((t,i) => {
     document.getElementById('modal-tab-' + t).style.display = i === 0 ? '' : 'none';
   });
 }
@@ -2574,7 +2578,7 @@ function cerrarModalDetalle() {
 function cambiarModalTab(tab, el) {
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['detalle','archivos','historial','pesada','romaneo','costeo'].forEach(t => {
+  ['resumen','detalle','archivos','historial','pesada','romaneo','costeo'].forEach(t => {
     document.getElementById('modal-tab-' + t).style.display = t === tab ? '' : 'none';
   });
 }
@@ -3031,6 +3035,112 @@ window.onload = async () => {
       .catch(err => console.log('SW error:', err));
   }
 };
+
+// ════════════════════════════════════════════════════
+//  MODAL TAB — RESUMEN
+// ════════════════════════════════════════════════════
+function renderModalResumen(op, seg, rom, cos) {
+  const el = document.getElementById('modal-tab-resumen');
+
+  const cabezas  = seg?.cant_real || op.cant || 0;
+  const kgNeto   = seg?.peso_neto   ? Number(seg.peso_neto)   : null;
+  const kgCarne  = rom?.kg_carne_total ? Number(rom.kg_carne_total) : null;
+  const total    = cos?.total_venta  ? Number(cos.total_venta)  : null;
+  const gastos   = cos?.total_costos ? Number(cos.total_costos) : null;
+  const neto     = total && gastos ? total - gastos : null;
+
+  // Indicadores principales
+  const pxKgCarne  = total && kgCarne  ? total / kgCarne  : null;
+  const pxKgPie    = total && kgNeto   ? total / kgNeto   : null;
+  const pxCabeza   = total && cabezas  ? total / cabezas  : null;
+  const gastoXKgC  = gastos && kgCarne ? gastos / kgCarne : null;
+  const gastoXKgP  = gastos && kgNeto  ? gastos / kgNeto  : null;
+  const netoXKgC   = pxKgCarne && gastoXKgC ? pxKgCarne - gastoXKgC : null;
+  const netoXKgP   = pxKgPie   && gastoXKgP ? pxKgPie   - gastoXKgP : null;
+  const rinde      = kgCarne && kgNeto  ? (kgCarne / kgNeto * 100) : null;
+
+  // Debaste
+  const debaste    = seg?.debaste_pct ? Number(seg.debaste_pct) : null;
+  const kgDebast   = kgNeto && debaste ? kgNeto * (1 - debaste/100) : null;
+  const pxKgDebast = total && kgDebast ? total / kgDebast : null;
+
+  const fmtM  = v => v != null ? '$' + Number(v).toLocaleString('es-AR',{maximumFractionDigits:0}) : '—';
+  const fmtMd = v => v != null ? '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  const fmtKg = v => v != null ? Number(v).toLocaleString('es-AR') + ' kg' : '—';
+
+  const card = (label, value, color='var(--white)', small=false) => `
+    <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border)">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text2);margin-bottom:6px;text-transform:uppercase">${label}</div>
+      <div style="font-size:${small?'14px':'16px'};font-weight:700;color:${color};font-family:var(--mono)">${value}</div>
+    </div>`;
+
+  const aviso = (texto) => `<div style="background:rgba(250,204,21,0.08);border:1px solid var(--warn);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--warn);margin-bottom:12px">⚠ ${texto}</div>`;
+
+  el.innerHTML = `
+  <div style="padding:4px 0">
+
+    <!-- CABECERA IDENTIDAD -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      ${card('Vendedor', op.titular || '—', 'var(--white)')}
+      ${card('Comprador', op.comprador || '—', 'var(--white)')}
+      ${card('Fecha Carga', op.f_carga || '—', 'var(--text2)')}
+    </div>
+
+    <!-- DATOS DE HACIENDA -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      ${card('Tropa N°', rom?.tropa_nro || seg?.nro_dte || '—', 'var(--accent)')}
+      ${card('Cabezas', cabezas, 'var(--white)')}
+      ${card('Kg Balanza Pública', fmtKg(kgNeto), 'var(--accent2)')}
+      ${card('Kg Carne', fmtKg(kgCarne), '#4ade80')}
+    </div>
+
+    <!-- RINDE EN GRANDE -->
+    ${rinde ? `
+    <div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:16px;text-align:center;border:1px solid ${rinde>=55?'#4ade80':rinde>=48?'#facc15':'var(--danger)'}">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:4px">RINDE</div>
+      <div style="font-size:36px;font-weight:800;color:${rinde>=55?'#4ade80':rinde>=48?'#facc15':'var(--danger)'};font-family:var(--mono)">${rinde.toFixed(2)}%</div>
+      <div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin-top:4px">Kg Carne / Kg Balanza Pública</div>
+    </div>` : aviso('Sin datos de romaneo o pesada para calcular el rinde')}
+
+    ${!cos ? aviso('Sin costeo cargado — los indicadores económicos no están disponibles') : `
+    <!-- INDICADORES ECONÓMICOS -->
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">INDICADORES ECONÓMICOS</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+      ${card('Total Venta', fmtM(total), '#facc15')}
+      ${card('Total Gastos', fmtM(gastos), 'var(--danger)')}
+      ${card('Neto', fmtM(neto), neto>=0?'#4ade80':'var(--danger)')}
+    </div>
+
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">PRECIO FINAL</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+      ${card('x Kg Carne', fmtMd(pxKgCarne), '#facc15')}
+      ${card('x Kg Al Pie', fmtMd(pxKgPie), '#facc15')}
+      ${card('x Cabeza', fmtM(pxCabeza), '#facc15')}
+    </div>
+
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">GASTOS UNITARIOS</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px">
+      ${card('Gasto x Kg Carne', fmtMd(gastoXKgC), 'var(--danger)')}
+      ${card('Gasto x Kg Al Pie', fmtMd(gastoXKgP), 'var(--danger)')}
+    </div>
+
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">NETO UNITARIO (Precio − Gasto)</div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px">
+      ${card('Neto x Kg Carne', fmtMd(netoXKgC), netoXKgC>=0?'#4ade80':'var(--danger)')}
+      ${card('Neto x Kg Al Pie', fmtMd(netoXKgP), netoXKgP>=0?'#4ade80':'var(--danger)')}
+    </div>
+
+    ${kgDebast ? `
+    <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);margin-bottom:8px">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">DEBASTE ${debaste}% → ${fmtKg(kgDebast)}</div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+        ${card('Precio Hacienda Al Pie', fmtMd(pxKgDebast), 'var(--accent2)', true)}
+        ${card('Total / Kg Debastados', fmtM(total) + ' ÷ ' + fmtKg(kgDebast), 'var(--text2)', true)}
+      </div>
+    </div>` : ''}
+    `}
+  </div>`;
+}
 
 // ════════════════════════════════════════════════════
 //  MODAL TAB — PESADA
