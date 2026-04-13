@@ -4307,10 +4307,7 @@ async function editarCosteo(opId) {
   const { data: op }  = await sb.from('operaciones').select('*').eq('id', opId).single();
   const { data: seg } = await sb.from('seguimiento').select('*').eq('operacion_id', opId).maybeSingle();
   const { data: rom } = await sb.from('romaneos').select('*').eq('operacion_id', opId).maybeSingle();
-  // Borrar costeo existente para mostrar formulario
-  await sb.from('costeos').delete().eq('operacion_id', opId);
-  await sb.from('seguimiento').update({ costeo: false, f_costeo: null }).eq('operacion_id', opId);
-  await sb.from('operaciones').update({ estado: 'romaneo_ok', updated_at: new Date() }).eq('id', opId);
+  // No borrar el costeo — renderizar en modo edición directamente
   await renderModalCosteo(op, seg, rom);
 }
 
@@ -4358,8 +4355,11 @@ async function guardarCosteo(opId, kgCarne, kgBalanza, cabezas) {
     : await sb.from('costeos').insert([payload]);
 
   if (error) { alert('Error: ' + error.message); return; }
+
+  const { error: err2 } = await sb.from('operaciones').update({ estado: 'finalizada', updated_at: new Date() }).eq('id', opId);
+  if (err2) console.error('Error estado:', err2.message);
   await sb.from('seguimiento').update({ costeo: true, f_costeo: new Date().toISOString().split('T')[0] }).eq('operacion_id', opId);
-  await sb.from('operaciones').update({ estado: 'finalizada', updated_at: new Date() }).eq('id', opId);
+
   await abrirDetalleOperacion(opId);
   const tabs = document.querySelectorAll('.modal-tab');
   tabs.forEach(t => t.classList.remove('active'));
