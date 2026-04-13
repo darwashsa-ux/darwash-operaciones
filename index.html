@@ -3906,15 +3906,56 @@ function renderModalPesada(op, seg) {
      style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:${color};font-size:13px">`;
 
   const tienePesada = seg?.peso_neto || seg?.kg_bruto;
-
-  // Calcular kg neto si hay bruto y tara
   const kgNeto  = seg?.peso_neto  ? Number(seg.peso_neto)  : null;
   const kgBruto = seg?.kg_bruto   ? Number(seg.kg_bruto)   : null;
   const kgTara  = seg?.kg_tara    ? Number(seg.kg_tara)    : null;
   const debaste = seg?.debaste_pct ? Number(seg.debaste_pct) : null;
   const kgDebastado = kgNeto && debaste ? (kgNeto * (1 - debaste/100)).toFixed(0) : null;
-
   const fmtKg = v => v != null ? Number(v).toLocaleString('es-AR') + ' kg' : '—';
+
+  const cats      = op.categorias_json?.filter(r => r.cant > 0) || [];
+  const multiCat  = cats.length > 1;
+  const pesadaCat = seg?.pesada_cat || [];
+  const cantTotal = cats.reduce((s,r) => s + (r.cant||0), 0) || seg?.cant_real || op.cant || 0;
+
+  // Desglose por categoría
+  let desglosePesadaHtml = '';
+  if (multiCat) {
+    desglosePesadaHtml = `
+    <div style="margin-top:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2)">KG NETO POR CATEGORÍA</div>
+        <button type="button" onclick="calcularPesadaPromedio()"
+          style="font-family:var(--mono);font-size:9px;padding:4px 10px;background:transparent;border:1px solid var(--warn);border-radius:4px;color:var(--warn);cursor:pointer">
+          ⚡ CALCULAR PROMEDIO
+        </button>
+      </div>
+      <div style="display:grid;grid-template-columns:1.5fr 80px 1fr;gap:6px;margin-bottom:6px;padding:0 2px">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2)">CATEGORÍA</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2)">CAB</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--accent2)">KG NETO CAT</div>
+      </div>`;
+    cats.forEach((c, i) => {
+      const prev = pesadaCat.find(r => r.cat === c.cat) || {};
+      desglosePesadaHtml += `
+      <div style="display:grid;grid-template-columns:1.5fr 80px 1fr;gap:6px;margin-bottom:6px;align-items:center">
+        <div style="font-family:var(--mono);font-size:12px;padding:8px;background:var(--bg3);border-radius:6px;font-weight:600">${c.cat}${c.subcat?' - '+c.subcat:''}</div>
+        <div style="font-family:var(--mono);font-size:12px;padding:8px;color:var(--text2)">${c.cant} cab</div>
+        <input type="number" id="pes-cat-${i}" value="${prev.kg_neto||''}" placeholder="Kg neto cat" step="any"
+          oninput="verificarSumaPesada()"
+          style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--accent2);font-family:var(--mono);font-size:12px;font-weight:600">
+      </div>`;
+    });
+    desglosePesadaHtml += `
+      <div id="pes-cat-suma" style="display:flex;justify-content:space-between;margin-top:6px;padding:8px 12px;background:var(--bg3);border-radius:6px;font-family:var(--mono);font-size:11px">
+        <span style="color:var(--text2)">SUMA CATS</span>
+        <span id="pes-cat-suma-val" style="color:var(--accent2)">—</span>
+      </div>
+      <div style="font-size:10px;color:var(--text2);font-family:var(--mono);margin-top:6px">
+        💡 Si no tenés el detalle por cat, usá ⚡ CALCULAR PROMEDIO (kg neto total ÷ total cab × cant cat)
+      </div>
+    </div>`;
+  }
 
   el.innerHTML = `
   <div class="detail-section">
@@ -3924,7 +3965,6 @@ function renderModalPesada(op, seg) {
     </div>
 
     ${tienePesada ? `
-    <!-- DATOS ACTUALES -->
     <div class="detail-grid" style="margin-bottom:16px">
       <div class="detail-item"><div class="detail-item-label">Kg Bruto</div>
         <div class="detail-item-value">${fmtKg(kgBruto)}</div></div>
@@ -3949,15 +3989,37 @@ function renderModalPesada(op, seg) {
           <div class="detail-item-value" style="color:var(--accent2)">${fmtKg(kgDebastado)}</div></div>
       </div>
     </div>` : ''}
+    ${pesadaCat.length > 0 ? `
+    <div style="margin-bottom:16px">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);margin-bottom:8px">DESGLOSE POR CATEGORÍA</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)">
+        <thead><tr style="color:var(--text2);border-bottom:1px solid var(--border)">
+          <th style="text-align:left;padding:6px 8px">Categoría</th>
+          <th style="padding:6px 8px">Cab</th>
+          <th style="padding:6px 8px;color:var(--accent2)">Kg Neto</th>
+          <th style="padding:6px 8px">Kg/Cab</th>
+        </tr></thead><tbody>
+        ${pesadaCat.map(r => `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:6px 8px;font-weight:600">${r.cat}${r.subcat?' - '+r.subcat:''}</td>
+          <td style="padding:6px 8px;text-align:center">${r.cab||'—'}</td>
+          <td style="padding:6px 8px;text-align:center;color:var(--accent2);font-weight:700">${r.kg_neto ? Number(r.kg_neto).toLocaleString('es-AR')+' kg' : '—'}</td>
+          <td style="padding:6px 8px;text-align:center;color:var(--text2)">${r.kg_neto && r.cab ? Math.round(r.kg_neto/r.cab).toLocaleString('es-AR')+' kg/cab' : '—'}</td>
+        </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : ''}
     <div style="height:1px;background:var(--border);margin-bottom:16px"></div>
     ` : ''}
 
-    <!-- FORMULARIO -->
     <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--text2);margin-bottom:12px">${tienePesada ? 'MODIFICAR DATOS' : 'CARGAR PESADA'}</div>
     <div class="detail-grid">
       <div class="detail-item"><div class="detail-item-label">Kg Bruto</div>${inp('bruto', kgBruto)}</div>
       <div class="detail-item"><div class="detail-item-label">Tara (kg)</div>${inp('tara', kgTara)}</div>
-      <div class="detail-item"><div class="detail-item-label">Kg Neto ⭐</div>${inp('neto', kgNeto, 'Se calcula o ingresá', 'var(--accent2)')}</div>
+      <div class="detail-item"><div class="detail-item-label">Kg Neto ⭐</div>
+        <input type="number" step="any" id="pes-neto" value="${kgNeto||''}" placeholder="Se calcula o ingresá"
+          oninput="${multiCat ? 'calcularPesadaPromedio()' : ''}"
+          style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--accent2);font-size:13px">
+      </div>
       <div class="detail-item"><div class="detail-item-label">% Debaste</div>${inp('debaste', debaste, 'ej: 2.5')}</div>
       <div class="detail-item"><div class="detail-item-label">Fecha Pesada</div>
         <input type="date" id="pes-fecha" value="${seg?.f_pesada||''}" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px">
@@ -3973,9 +4035,7 @@ function renderModalPesada(op, seg) {
       </div>
     </div>
 
-    <div style="margin-top:8px;font-size:11px;color:var(--text2);font-family:var(--mono)">
-      💡 Si ingresás Bruto y Tara, el Kg Neto se calcula automático al guardar. O podés ingresar el Kg Neto directamente.
-    </div>
+    ${desglosePesadaHtml}
 
     <div style="margin-top:16px">
       <button onclick="guardarPesada(${op.id})"
@@ -3984,6 +4044,40 @@ function renderModalPesada(op, seg) {
       </button>
     </div>
   </div>`;
+
+  // Guardar cats en global
+  window._pesCats = cats;
+  window._pesCantTotal = cantTotal;
+}
+
+function calcularPesadaPromedio() {
+  const kgNeto   = parseFloat(document.getElementById('pes-neto')?.value) || 0;
+  const cats     = window._pesCats || [];
+  const cantTotal = window._pesCantTotal || 0;
+  if (!kgNeto || !cantTotal) return;
+  const kgPorCab = kgNeto / cantTotal;
+  cats.forEach((c, i) => {
+    const inp = document.getElementById(`pes-cat-${i}`);
+    if (inp) {
+      inp.value = Math.round(kgPorCab * c.cant);
+      inp.style.borderColor = 'var(--warn)';
+    }
+  });
+  verificarSumaPesada();
+}
+
+function verificarSumaPesada() {
+  const cats = window._pesCats || [];
+  let suma = 0;
+  cats.forEach((c, i) => {
+    suma += parseFloat(document.getElementById(`pes-cat-${i}`)?.value) || 0;
+  });
+  const el = document.getElementById('pes-cat-suma-val');
+  const kgNeto = parseFloat(document.getElementById('pes-neto')?.value) || 0;
+  if (el) {
+    el.textContent = suma.toLocaleString('es-AR') + ' kg';
+    el.style.color = kgNeto && Math.abs(suma - kgNeto) > 10 ? 'var(--danger)' : 'var(--accent2)';
+  }
 }
 
 async function guardarPesada(opId) {
@@ -3996,10 +4090,17 @@ async function guardarPesada(opId) {
   const balanza = document.getElementById('pes-balanza')?.value  || null;
   const dominio = document.getElementById('pes-dominio')?.value  || null;
 
-  // Calcular neto si hay bruto y tara, sino usar el ingresado
   const neto = (bruto && tara) ? bruto - tara : netoInp;
-
   if (!neto) { alert('Ingresá el Kg Neto o los datos de Bruto y Tara'); return; }
+
+  // Leer desglose por categoría si hay multi-cat
+  const cats = window._pesCats || [];
+  const pesadaCat = cats.length > 1 ? cats.map((c, i) => ({
+    cat:     c.cat,
+    subcat:  c.subcat || '',
+    cab:     c.cant,
+    kg_neto: parseFloat(document.getElementById(`pes-cat-${i}`)?.value) || null,
+  })).filter(r => r.kg_neto) : null;
 
   const { error } = await sb.from('seguimiento').update({
     kg_bruto:        bruto,
@@ -4010,18 +4111,17 @@ async function guardarPesada(opId) {
     ticket_balanza:  ticket,
     balanza:         balanza,
     dominio_balanza: dominio,
-    f_pesada:        fecha,
+    pesada_cat:      pesadaCat,
     updated_at:      new Date()
   }).eq('operacion_id', opId);
 
   if (error) { alert('Error: ' + error.message); return; }
   await abrirDetalleOperacion(opId);
-  // ir a pestaña pesada
   const tabs = document.querySelectorAll('.modal-tab');
   tabs.forEach(t => t.classList.remove('active'));
-  tabs[3].classList.add('active');
-  ['detalle','archivos','historial','pesada','romaneo','costeo'].forEach((t,i) => {
-    document.getElementById('modal-tab-' + t).style.display = i === 3 ? '' : 'none';
+  tabs[4].classList.add('active');
+  ['resumen','detalle','archivos','historial','pesada','romaneo','costeo'].forEach((t,i) => {
+    document.getElementById('modal-tab-' + t).style.display = i === 4 ? '' : 'none';
   });
 }
 async function renderModalCosteo(op, seg, rom) {
