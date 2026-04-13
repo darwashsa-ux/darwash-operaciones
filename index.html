@@ -3408,35 +3408,41 @@ function formRomaneo(opId, rom, seg, cats=[]) {
     const desgloseExistente = rom?.desglose_cat || [];
     html += `<div style="margin-top:16px">
       <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">DESGLOSE POR CATEGORÍA</div>
-      <div style="display:grid;grid-template-columns:1.5fr 80px 1fr ${pesoNeto?'1fr':''}; gap:6px;margin-bottom:6px;padding:0 2px">
+      <div style="display:grid;grid-template-columns:1.5fr 70px 1fr 1fr 90px;gap:6px;margin-bottom:6px;padding:0 2px">
         <div style="font-family:var(--mono);font-size:9px;color:var(--text2)">CATEGORÍA</div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--text2)">CAB</div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--text2)">KG CARNE</div>
-        ${pesoNeto ? '<div style="font-family:var(--mono);font-size:9px;color:var(--text2)">KG PIE CAT</div>' : ''}
+        <div style="font-family:var(--mono);font-size:9px;color:var(--accent2)">KG PIE CAT</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--warn)">RINDE EST.%</div>
       </div>`;
     cats.forEach((c, i) => {
       const prev = desgloseExistente.find(d => d.cat === c.cat && d.subcat === c.subcat) || {};
-      html += `<div style="display:grid;grid-template-columns:1.5fr 80px 1fr ${pesoNeto?'1fr':''};gap:6px;margin-bottom:6px;align-items:center">
+      html += `<div style="display:grid;grid-template-columns:1.5fr 70px 1fr 1fr 90px;gap:6px;margin-bottom:4px;align-items:center">
         <div style="font-family:var(--mono);font-size:12px;padding:8px;background:var(--bg3);border-radius:6px;font-weight:600">${c.cat}${c.subcat?' - '+c.subcat:''}</div>
-        <input type="number" id="rom-dc-cab-${i}" value="${prev.cab||c.cant||''}" placeholder="${c.cant}"
+        <input type="number" id="rom-dc-cab-${i}" value="${prev.cab||c.cant||''}"
           style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-family:var(--mono);font-size:12px">
         <input type="number" id="rom-dc-kg-${i}" value="${prev.kg_carne||''}" placeholder="Kg carne" step="any"
-          oninput="actualizarRindeDesglose(${i},${pesoNeto})"
+          oninput="calcularKgPieCat(${i})"
           style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:#4ade80;font-family:var(--mono);font-size:12px;font-weight:600">
-        ${pesoNeto ? `<input type="number" id="rom-dc-kgpie-${i}" value="${prev.kg_pie_cat||''}" placeholder="Kg pie cat" step="any"
-          oninput="actualizarRindeDesglose(${i},${pesoNeto})"
-          style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--accent2);font-family:var(--mono);font-size:12px">` : ''}
+        <input type="number" id="rom-dc-kgpie-${i}" value="${prev.kg_pie_cat||''}" placeholder="Auto / manual" step="any"
+          oninput="actualizarRindeDesglose(${i})"
+          style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--accent2);font-family:var(--mono);font-size:12px">
+        <input type="number" id="rom-dc-rindeest-${i}" value="${prev.rinde_est||''}" placeholder="ej: 57" step="0.1"
+          oninput="calcularKgPieCat(${i})"
+          style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--warn);font-family:var(--mono);font-size:12px">
       </div>
-      <div id="rom-dc-rinde-${i}" style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:8px;margin-left:2px">Rinde: —</div>`;
+      <div id="rom-dc-result-${i}" style="font-family:var(--mono);font-size:10px;color:var(--text2);margin-bottom:8px;margin-left:2px">Rinde: —</div>`;
     });
     html += '</div>';
   }
 
   html += `<div style="margin-top:16px;display:flex;gap:10px">
-    <button onclick="guardarRomaneo(${opId}${rom?',\''+rom.id+'\'':''}, ${JSON.stringify(cats).replace(/"/g,"'")})"
+    <button onclick="guardarRomaneo(${opId}${rom?`,'${rom.id}'`:''})"
       style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:10px 20px;background:var(--success);border:none;border-radius:6px;color:#000;cursor:pointer;font-weight:700">💾 GUARDAR</button>
     ${rom ? `<button onclick="abrirDetalleOperacion(${opId})" style="font-family:var(--mono);font-size:11px;padding:10px 20px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer">✕ CANCELAR</button>` : ''}
   </div></div>`;
+  // Guardar cats en variable global para usar al guardar
+  window._romCats = cats;
   return html;
 }
 
@@ -3455,13 +3461,30 @@ function actualizarRinde(input, pesoNeto) {
   el.textContent = kgCarne && pesoNeto ? (kgCarne / pesoNeto * 100).toFixed(2) + '%' : '—';
 }
 
-function actualizarRindeDesglose(idx, pesoNeto) {
-  const kgCarne = parseFloat(document.getElementById(`rom-dc-kg-${idx}`)?.value) || 0;
+function calcularKgPieCat(idx) {
+  const kgCarne   = parseFloat(document.getElementById(`rom-dc-kg-${idx}`)?.value) || 0;
+  const rindeEst  = parseFloat(document.getElementById(`rom-dc-rindeest-${idx}`)?.value) || 0;
+  const kgPieInp  = document.getElementById(`rom-dc-kgpie-${idx}`);
+  const resEl     = document.getElementById(`rom-dc-result-${idx}`);
+  // Si hay kg carne y rinde estimado → calcular kg pie automático
+  if (kgCarne && rindeEst && kgPieInp) {
+    const kgPieCalc = (kgCarne / (rindeEst / 100));
+    kgPieInp.value = kgPieCalc.toFixed(0);
+    kgPieInp.style.borderColor = 'var(--warn)';
+    if (resEl) { resEl.textContent = `Rinde: ${rindeEst}% (est.) → Kg pie: ${kgPieCalc.toLocaleString('es-AR',{maximumFractionDigits:0})} kg`; resEl.style.color = 'var(--warn)'; }
+  } else {
+    actualizarRindeDesglose(idx);
+  }
+}
+
+function actualizarRindeDesglose(idx) {
+  const kgCarne  = parseFloat(document.getElementById(`rom-dc-kg-${idx}`)?.value) || 0;
   const kgPieCat = parseFloat(document.getElementById(`rom-dc-kgpie-${idx}`)?.value) || 0;
-  const el = document.getElementById(`rom-dc-rinde-${idx}`);
+  const el       = document.getElementById(`rom-dc-result-${idx}`);
   if (!el) return;
   if (kgCarne && kgPieCat) {
-    el.textContent = 'Rinde: ' + (kgCarne / kgPieCat * 100).toFixed(2) + '%';
+    const r = (kgCarne / kgPieCat * 100).toFixed(2);
+    el.textContent = `Rinde real: ${r}%`;
     el.style.color = '#4ade80';
   } else {
     el.textContent = 'Rinde: —';
@@ -3469,17 +3492,8 @@ function actualizarRindeDesglose(idx, pesoNeto) {
   }
 }
 
-async function editarRomaneo(opId) {
-  const { data: op }  = await sb.from('operaciones').select('categorias_json').eq('id', opId).single();
-  const { data: rom } = await sb.from('romaneos').select('*').eq('operacion_id', opId).maybeSingle();
-  const { data: seg } = await sb.from('seguimiento').select('peso_neto').eq('operacion_id', opId).maybeSingle();
-  const cats = op?.categorias_json?.filter(r => r.cant > 0) || [];
-  const el = document.getElementById('modal-tab-romaneo');
-  el.innerHTML = '<div class="detail-section"><div class="detail-section-title" style="color:#4ade80">✏ Editar Romaneo</div>' +
-    formRomaneo(opId, rom, seg, cats) + '</div>';
-}
-
-async function guardarRomaneo(opId, romId, cats=[]) {
+async function guardarRomaneo(opId, romId) {
+  const cats = window._romCats || [];
   // Leer desglose por categoría si hay
   const desglose = cats.length > 1 ? cats.map((c, i) => ({
     cat:        c.cat,
@@ -3487,6 +3501,7 @@ async function guardarRomaneo(opId, romId, cats=[]) {
     cab:        parseInt(document.getElementById(`rom-dc-cab-${i}`)?.value) || null,
     kg_carne:   parseFloat(document.getElementById(`rom-dc-kg-${i}`)?.value) || null,
     kg_pie_cat: parseFloat(document.getElementById(`rom-dc-kgpie-${i}`)?.value) || null,
+    rinde_est:  parseFloat(document.getElementById(`rom-dc-rindeest-${i}`)?.value) || null,
   })).filter(r => r.kg_carne) : null;
 
   const payload = {
