@@ -1440,6 +1440,29 @@
         </div>
         <div id="tabla-plantas"></div>
       </div>
+
+      <!-- BACKUP -->
+      <div class="card">
+        <div class="card-title">💾 Backup de Datos</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+          Exporta todas las tablas críticas en un archivo JSON con fecha y hora. Guardalo en Google Drive o donde prefieras. Se recomienda hacerlo <strong style="color:var(--white)">una vez por semana</strong>.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:20px" id="backup-tablas">
+          <div style="font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">●</span> operaciones</div>
+          <div style="font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">●</span> seguimiento</div>
+          <div style="font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">●</span> romaneos</div>
+          <div style="font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">●</span> costeos</div>
+          <div style="font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">●</span> fletes</div>
+          <div style="font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;display:flex;align-items:center;gap:8px"><span style="color:var(--accent)">●</span> usuarios</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button onclick="hacerBackup()" id="btn-backup"
+            style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:10px 24px;background:var(--accent2);border:none;border-radius:6px;color:#000;cursor:pointer;font-weight:700">
+            ⬇ DESCARGAR BACKUP
+          </button>
+          <div id="backup-status" style="font-family:var(--mono);font-size:11px;color:var(--text2)"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ── PAGE: FLETES ── -->
@@ -5485,6 +5508,47 @@ async function cargarParametros() {
     <td><button onclick="editarPlanta(${p.id},'${p.planta.replace(/'/g,"\\'")}',${p.km??0},'${p.frigo_codigo??''}')" 
       style="font-family:var(--mono);font-size:9px;padding:3px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer">✎ EDITAR</button></td>
   </tr>`).join('') + '</tbody></table>';
+}
+
+async function hacerBackup() {
+  const btn    = document.getElementById('btn-backup');
+  const status = document.getElementById('backup-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ GENERANDO...';
+  status.textContent = '';
+
+  try {
+    const tablas = ['operaciones','seguimiento','romaneos','costeos','fletes','fletes_operaciones','usuarios','parametros_costos','plantas_distancias'];
+    const backup = { fecha: new Date().toISOString(), version: '1.0', tablas: {} };
+
+    for (const tabla of tablas) {
+      status.textContent = `Exportando ${tabla}...`;
+      const { data, error } = await sb.from(tabla).select('*');
+      if (error) { console.warn(`Error en ${tabla}:`, error.message); backup.tablas[tabla] = []; }
+      else backup.tablas[tabla] = data || [];
+    }
+
+    // Generar el archivo JSON y descargarlo
+    const json     = JSON.stringify(backup, null, 2);
+    const blob     = new Blob([json], { type: 'application/json' });
+    const url      = URL.createObjectURL(blob);
+    const fechaStr = new Date().toISOString().slice(0,10);
+    const a        = document.createElement('a');
+    a.href         = url;
+    a.download     = `darwash-backup-${fechaStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const totalReg = Object.values(backup.tablas).reduce((s, t) => s + t.length, 0);
+    status.innerHTML = `<span style="color:var(--accent)">✅ Backup descargado — ${totalReg} registros · ${fechaStr}</span>`;
+  } catch(e) {
+    status.innerHTML = `<span style="color:var(--danger)">❌ Error: ${e.message}</span>`;
+  }
+
+  btn.disabled    = false;
+  btn.textContent = '⬇ DESCARGAR BACKUP';
 }
 
 async function guardarParametros() {
