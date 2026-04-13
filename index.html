@@ -2380,12 +2380,42 @@ async function cargarPablo() {
     return;
   }
 
-  el.innerHTML = ops.map(op => `
+  el.innerHTML = ops.map(op => {
+    const tieneMultiCat = op.categorias_json?.length > 1;
+    const catInicial = tieneMultiCat
+      ? op.categorias_json.map((r,i) => `
+          <div id="pablo-fila-cat-${op.id}-${i}" style="display:grid;grid-template-columns:1fr 1fr 80px 30px;gap:6px;margin-bottom:6px;align-items:center">
+            <select id="pablo-fcat-${op.id}-${i}" onchange="actualizarSubcatPablo(${op.id},${i})" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;color:var(--white);font-size:12px">
+              <option value="">—</option>
+              ${['VQ','VA','NOV','TM','TH','TORO','TORITO','MEJ','VACA CON CRIA','VA PREÑADA'].map(c=>`<option ${c===r.cat?'selected':''}>${c}</option>`).join('')}
+            </select>
+            <select id="pablo-fsubcat-${op.id}-${i}" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;color:var(--white);font-size:12px">
+              <option value="">—</option>
+              ${(SUBCATS[r.cat]||[]).map(s=>`<option>${s}</option>`).join('')}
+            </select>
+            <input type="number" id="pablo-fcant-${op.id}-${i}" value="${r.cant}" placeholder="Cab"
+              oninput="actualizarTotalPablo(${op.id})"
+              style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;color:var(--accent);font-family:var(--mono);font-size:12px;font-weight:700">
+            <button type="button" onclick="eliminarFilaPablo(${op.id},${i})" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--danger);cursor:pointer;padding:5px">✕</button>
+          </div>`).join('')
+      : `<div id="pablo-fila-cat-${op.id}-0" style="display:grid;grid-template-columns:1fr 1fr 80px;gap:6px;margin-bottom:6px;align-items:center">
+            <select id="pablo-fcat-${op.id}-0" onchange="actualizarSubcatPablo(${op.id},0)" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;color:var(--white);font-size:12px">
+              <option value="">—</option>
+              ${['VQ','VA','NOV','TM','TH','TORO','TORITO','MEJ','VACA CON CRIA','VA PREÑADA'].map(c=>`<option ${c===op.cat?'selected':''}>${c}</option>`).join('')}
+            </select>
+            <select id="pablo-fsubcat-${op.id}-0" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;color:var(--white);font-size:12px">
+              <option value="">—</option>
+            </select>
+            <input type="number" id="pablo-fcant-${op.id}-0" placeholder="Cab reales"
+              oninput="actualizarTotalPablo(${op.id})"
+              style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;color:var(--accent);font-family:var(--mono);font-size:12px;font-weight:700">
+          </div>`;
+    return `
     <div class="card" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px">
         <div>
           <div style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:6px">#${op.numero} — ${op.f_carga}</div>
-          <div style="font-size:15px;font-weight:600;color:var(--white);margin-bottom:4px">${op.titular} | ${op.cant || '?'} ${op.cat || ''} ${op.raza || ''}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--white);margin-bottom:4px">${op.titular} | ${op.cant || '?'} ${tieneMultiCat ? op.categorias_json.map(r=>r.cant+' '+r.cat).join(' + ') : (op.cat||'')} ${op.raza || ''}</div>
           <div style="color:var(--text2)">${op.comprador || '?'} (${op.planta || '?'}) · Destino: ${op.destino || '?'}</div>
           ${op.acuerdo_vend ? `<div style="color:var(--text2);margin-top:4px">Acuerdo: ${op.acuerdo_vend}</div>` : ''}
         </div>
@@ -2393,24 +2423,16 @@ async function cargarPablo() {
       </div>
       <div class="sep"></div>
       <div class="form-grid" style="gap:12px">
-        <div class="field">
-          <label>Cab. reales</label>
-          <input type="number" id="pablo-cant-${op.id}" placeholder="Cabezas reales">
-        </div>
-        <div class="field">
-          <label>Categoría real</label>
-          <select id="pablo-cat-${op.id}" onchange="actualizarSubcat('pablo-cat-${op.id}','pablo-subcat-${op.id}')">
-            <option value="">—</option>
-            <option>VQ</option><option>VA</option><option>NOV</option><option>TM</option>
-            <option>TH</option><option>TORO</option><option>TORITO</option><option>MEJ</option>
-            <option>VACA CON CRIA</option><option>VA PREÑADA</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Subcategoría real</label>
-          <select id="pablo-subcat-${op.id}">
-            <option value="">—</option>
-          </select>
+        <div class="field" style="grid-column:1/-1">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <label>Composición real del lote</label>
+            <button type="button" onclick="agregarFilaPablo(${op.id})" style="font-family:var(--mono);font-size:9px;padding:3px 10px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer">+ AGREGAR CAT</button>
+          </div>
+          <div id="pablo-cats-${op.id}">${catInicial}</div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;padding:6px 10px;background:var(--bg3);border-radius:4px">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">TOTAL</span>
+            <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent)" id="pablo-total-${op.id}">${op.cant || 0} cab</span>
+          </div>
         </div>
         <div class="field">
           <label>Kg pie (total)</label>
@@ -2420,7 +2442,8 @@ async function cargarPablo() {
           <label>Observaciones</label>
           <input type="text" id="pablo-obs-${op.id}" placeholder="Obs">
         </div>
-      </div>
+      </div>`;
+  }).join('') + (ops.map(op => `
       <div style="height:1px;background:var(--border);margin:12px 0"></div>
       <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--accent2);text-transform:uppercase;margin-bottom:10px">🚛 Datos del Transporte</div>
       <div class="form-grid" style="gap:12px">
@@ -2448,14 +2471,72 @@ async function cargarPablo() {
           <input type="time" id="pablo-hsalida-${op.id}">
         </div>
       </div>
-    </div>
-  `).join('');
+    </div>`).join(''));
+}
+
+function actualizarSubcatPablo(opId, idx) {
+  const cat = document.getElementById(`pablo-fcat-${opId}-${idx}`)?.value || '';
+  const sel = document.getElementById(`pablo-fsubcat-${opId}-${idx}`);
+  if (!sel) return;
+  const opts = SUBCATS[cat] || [];
+  sel.innerHTML = '<option value="">—</option>' + opts.map(o => `<option>${o}</option>`).join('');
+  sel.disabled = opts.length === 0;
+}
+
+function agregarFilaPablo(opId) {
+  const cont = document.getElementById(`pablo-cats-${opId}`);
+  if (!cont) return;
+  const idx = cont.children.length;
+  const div = document.createElement('div');
+  div.id = `pablo-fila-cat-${opId}-${idx}`;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 80px 30px;gap:6px;margin-bottom:6px;align-items:center';
+  div.innerHTML = `
+    <select id="pablo-fcat-${opId}-${idx}" onchange="actualizarSubcatPablo(${opId},${idx})" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;color:var(--white);font-size:12px">
+      <option value="">—</option>
+      ${['VQ','VA','NOV','TM','TH','TORO','TORITO','MEJ','VACA CON CRIA','VA PREÑADA'].map(c=>`<option>${c}</option>`).join('')}
+    </select>
+    <select id="pablo-fsubcat-${opId}-${idx}" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;color:var(--white);font-size:12px">
+      <option value="">—</option>
+    </select>
+    <input type="number" id="pablo-fcant-${opId}-${idx}" placeholder="Cab"
+      oninput="actualizarTotalPablo(${opId})"
+      style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px;color:var(--accent);font-family:var(--mono);font-size:12px;font-weight:700">
+    <button type="button" onclick="eliminarFilaPablo(${opId},${idx})" style="background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--danger);cursor:pointer;padding:5px">✕</button>`;
+  cont.appendChild(div);
+}
+
+function eliminarFilaPablo(opId, idx) {
+  document.getElementById(`pablo-fila-cat-${opId}-${idx}`)?.remove();
+  actualizarTotalPablo(opId);
+}
+
+function actualizarTotalPablo(opId) {
+  const cats = leerCatsPablo(opId);
+  const total = cats.reduce((s, r) => s + (r.cant||0), 0);
+  const el = document.getElementById(`pablo-total-${opId}`);
+  if (el) el.textContent = total + ' cab';
+}
+
+function leerCatsPablo(opId) {
+  const rows = [];
+  const cont = document.getElementById(`pablo-cats-${opId}`);
+  if (!cont) return rows;
+  cont.querySelectorAll('[id^="pablo-fila-cat-"]').forEach(div => {
+    const idx    = div.id.split('-').pop();
+    const cat    = document.getElementById(`pablo-fcat-${opId}-${idx}`)?.value   || '';
+    const subcat = document.getElementById(`pablo-fsubcat-${opId}-${idx}`)?.value || '';
+    const cant   = parseInt(document.getElementById(`pablo-fcant-${opId}-${idx}`)?.value) || 0;
+    if (cat && cant > 0) rows.push({ cat, subcat, cant });
+  });
+  return rows;
 }
 
 async function confirmarPablo(opId, numero) {
-  const cant     = document.getElementById(`pablo-cant-${opId}`).value;
-  const cat      = document.getElementById(`pablo-cat-${opId}`).value;
-  const subcat   = document.getElementById(`pablo-subcat-${opId}`)?.value || null;
+  const cats     = leerCatsPablo(opId);
+  const cantTotal= cats.reduce((s,r) => s+r.cant, 0) || parseInt(document.getElementById(`pablo-fcant-${opId}-0`)?.value) || null;
+  const catPred  = cats.sort((a,b)=>b.cant-a.cant)[0];
+  const cat      = catPred?.cat    || null;
+  const subcat   = catPred?.subcat || null;
   const kg       = document.getElementById(`pablo-kg-${opId}`).value;
   const obs      = document.getElementById(`pablo-obs-${opId}`).value;
   const camion   = document.getElementById(`pablo-camion-${opId}`).value;
@@ -2464,15 +2545,21 @@ async function confirmarPablo(opId, numero) {
   const fSalida  = document.getElementById(`pablo-fsalida-${opId}`).value;
   const hSalida  = document.getElementById(`pablo-hsalida-${opId}`).value;
 
+  if (!cantTotal) { alert('Ingresá al menos una categoría con cabezas'); return; }
+
   // Generar token único para link de arribo del chofer
   const token = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
 
-  // Actualizar operacion
-  await sb.from('operaciones').update({ estado: 'confirmada', updated_at: new Date() }).eq('id', opId);
+  // Actualizar operacion — también guardar categorias_json confirmadas
+  await sb.from('operaciones').update({
+    estado: 'confirmada',
+    categorias_json: cats.length > 0 ? cats : undefined,
+    updated_at: new Date()
+  }).eq('id', opId);
 
   // Actualizar seguimiento con datos de carga + transporte
   await sb.from('seguimiento').update({
-    cant_real:      parseInt(cant)    || null,
+    cant_real:      cantTotal,
     cat_real:       cat               || null,
     subcat_real:    subcat            || null,
     kg_pie:         parseFloat(kg)    || null,
