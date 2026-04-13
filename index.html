@@ -916,7 +916,7 @@
         <div class="card-title">▸ Seguimiento de Operaciones</div>
 
         <!-- FILTROS -->
-        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:flex-end">
+        <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:flex-end">
           <div>
             <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Estado</div>
             <select id="filtro-estado" onchange="aplicarFiltros()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none">
@@ -937,6 +937,14 @@
             </select>
           </div>
           <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Vendedor</div>
+            <input type="text" id="filtro-vendedor" oninput="aplicarFiltros()" placeholder="Nombre..." style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none;width:150px">
+          </div>
+          <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Frigorífico</div>
+            <input type="text" id="filtro-frigo" oninput="aplicarFiltros()" placeholder="Nombre..." style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none;width:150px">
+          </div>
+          <div>
             <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Desde</div>
             <input type="date" id="filtro-desde" onchange="aplicarFiltros()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none">
           </div>
@@ -951,6 +959,13 @@
           <div style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text2);align-self:center">
             <span id="filtro-count"></span>
           </div>
+        </div>
+
+        <!-- BARRA SELECCIÓN -->
+        <div id="barra-seleccion" style="display:none;background:rgba(99,102,241,0.1);border:1px solid var(--accent);border-radius:8px;padding:10px 16px;margin-bottom:12px;display:none;align-items:center;gap:12px">
+          <span id="sel-count" style="font-family:var(--mono);font-size:12px;color:var(--accent)">0 seleccionadas</span>
+          <button onclick="abrirResumenConsolidado()" style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:7px 16px;background:var(--accent);border:none;border-radius:6px;color:#000;cursor:pointer;font-weight:700">📊 RESUMEN CONSOLIDADO</button>
+          <button onclick="deseleccionarTodo()" style="font-family:var(--mono);font-size:10px;padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer">✕ LIMPIAR SELECCIÓN</button>
         </div>
 
         <div id="tabla-seguimiento"><div class="loading"><span class="spinner"></span>CARGANDO...</div></div>
@@ -1230,6 +1245,24 @@
         <div id="modal-tab-pesada" style="display:none"></div>
         <div id="modal-tab-romaneo" style="display:none"></div>
         <div id="modal-tab-costeo" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL RESUMEN CONSOLIDADO -->
+  <div class="modal-overlay" id="modal-consolidado" onclick="if(event.target===this)cerrarConsolidado()" style="display:none">
+    <div class="modal-detalle" style="max-width:700px">
+      <div class="modal-header">
+        <div class="modal-header-top">
+          <div>
+            <div class="modal-op-num" id="consol-subtitulo"></div>
+            <div class="modal-op-title">📊 Resumen Consolidado</div>
+          </div>
+          <button class="modal-close" onclick="cerrarConsolidado()">&#x2715;</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="modal-consolidado-body"></div>
       </div>
     </div>
   </div>
@@ -1810,16 +1843,20 @@ async function cargarSeguimiento() {
 }
 
 function aplicarFiltros() {
-  const estado = document.getElementById('filtro-estado')?.value || '';
-  const consig = document.getElementById('filtro-consig')?.value || '';
-  const desde  = document.getElementById('filtro-desde')?.value || '';
-  const hasta  = document.getElementById('filtro-hasta')?.value || '';
+  const estado   = document.getElementById('filtro-estado')?.value || '';
+  const consig   = document.getElementById('filtro-consig')?.value || '';
+  const vendedor = document.getElementById('filtro-vendedor')?.value.toLowerCase() || '';
+  const frigo    = document.getElementById('filtro-frigo')?.value.toLowerCase() || '';
+  const desde    = document.getElementById('filtro-desde')?.value || '';
+  const hasta    = document.getElementById('filtro-hasta')?.value || '';
 
   let filtradas = opsCache.filter(op => {
-    if (estado && op.estado !== estado) return false;
-    if (consig && op.por !== consig) return false;
-    if (desde  && op.f_carga < desde) return false;
-    if (hasta  && op.f_carga > hasta) return false;
+    if (estado   && op.estado !== estado) return false;
+    if (consig   && op.por !== consig) return false;
+    if (vendedor && !(op.titular||'').toLowerCase().includes(vendedor)) return false;
+    if (frigo    && !(op.comprador||'').toLowerCase().includes(frigo) && !(op.planta||'').toLowerCase().includes(frigo)) return false;
+    if (desde    && op.f_carga < desde) return false;
+    if (hasta    && op.f_carga > hasta) return false;
     return true;
   });
 
@@ -2096,6 +2133,7 @@ function renderTablaOps(ops, detallado) {
   const th = (col, label, cls) => `<th class="${cls}" style="cursor:pointer;user-select:none" onclick="sortBy('${col}')">${label}${sortIndicator(col)}</th>`;
 
   const colsSeguimiento = `
+    <th style="width:32px"><input type="checkbox" id="chk-all" onchange="seleccionarTodo(this.checked)" style="cursor:pointer"></th>
     ${th('numero','#','col-num')}
     ${th('f_carga','F. Carga','col-fecha')}
     ${th('por','Consig.','col-consig')}
@@ -2139,7 +2177,8 @@ function renderTablaOps(ops, detallado) {
     </tr>`).join('');
 
   const rowsSeguimiento = ops.map(op => `
-    <tr style="cursor:pointer" onclick="abrirDetalleOperacion(${op.id})">
+    <tr style="cursor:pointer" onclick="abrirDetalleOperacion(${op.id})" id="row-op-${op.id}">
+      <td onclick="event.stopPropagation()"><input type="checkbox" class="chk-op" data-id="${op.id}" onchange="actualizarSeleccion()" style="cursor:pointer"></td>
       <td class="col-num" style="font-family:var(--mono);color:var(--accent);font-weight:600">${op.numero}</td>
       <td class="col-fecha" style="font-family:var(--mono);font-size:12px;color:var(--text2)">${op.f_carga || '—'}</td>
       <td class="col-consig"><span style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--accent2);background:var(--bg3);padding:2px 6px;border-radius:4px;border:1px solid var(--border)">${op.por || '—'}</span></td>
@@ -3512,6 +3551,149 @@ async function guardarCosteo(opId, kgCarne, kgBalanza, cabezas) {
     document.getElementById('modal-tab-' + t).style.display = i === 4 ? '' : 'none';
   });
 }
+
+// ════════════════════════════════════════════════════
+//  RESUMEN CONSOLIDADO
+// ════════════════════════════════════════════════════
+function actualizarSeleccion() {
+  const chks = document.querySelectorAll('.chk-op:checked');
+  const barra = document.getElementById('barra-seleccion');
+  const cont  = document.getElementById('sel-count');
+  if (chks.length > 0) {
+    barra.style.display = 'flex';
+    cont.textContent = chks.length + ' operación' + (chks.length > 1 ? 'es' : '') + ' seleccionada' + (chks.length > 1 ? 's' : '');
+  } else {
+    barra.style.display = 'none';
+  }
+}
+
+function seleccionarTodo(checked) {
+  document.querySelectorAll('.chk-op').forEach(c => c.checked = checked);
+  actualizarSeleccion();
+}
+
+function deseleccionarTodo() {
+  document.querySelectorAll('.chk-op').forEach(c => c.checked = false);
+  const chkAll = document.getElementById('chk-all');
+  if (chkAll) chkAll.checked = false;
+  actualizarSeleccion();
+}
+
+async function abrirResumenConsolidado() {
+  const ids = [...document.querySelectorAll('.chk-op:checked')].map(c => parseInt(c.dataset.id));
+  if (!ids.length) return;
+
+  const modal = document.getElementById('modal-consolidado');
+  const body  = document.getElementById('modal-consolidado-body');
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  body.innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
+
+  const ops  = opsCache.filter(o => ids.includes(o.id));
+  const { data: segs } = await sb.from('seguimiento').select('*').in('operacion_id', ids);
+  const { data: roms } = await sb.from('romaneos').select('*').in('operacion_id', ids);
+  const { data: coss } = await sb.from('costeos').select('*').in('operacion_id', ids);
+
+  const segMap = {}; (segs||[]).forEach(s => segMap[s.operacion_id] = s);
+  const romMap = {}; (roms||[]).forEach(r => romMap[r.operacion_id] = r);
+  const cosMap = {}; (coss||[]).forEach(c => cosMap[c.operacion_id] = c);
+
+  let totCabezas=0, totKgNeto=0, totKgCarne=0, totVenta=0, totGastos=0;
+  const vendedores = new Set(), compradores = new Set(), fechas = [];
+
+  ops.forEach(op => {
+    const seg = segMap[op.id];
+    const rom = romMap[op.id];
+    const cos = cosMap[op.id];
+    totCabezas += Number(seg?.cant_real || op.cant || 0);
+    totKgNeto  += seg?.peso_neto      ? Number(seg.peso_neto)      : 0;
+    totKgCarne += rom?.kg_carne_total ? Number(rom.kg_carne_total) : 0;
+    totVenta   += cos?.total_venta    ? Number(cos.total_venta)    : 0;
+    totGastos  += cos?.total_costos   ? Number(cos.total_costos)   : 0;
+    if (op.titular)   vendedores.add(op.titular);
+    if (op.comprador) compradores.add(op.comprador);
+    if (op.f_carga)   fechas.push(op.f_carga);
+  });
+
+  const neto      = totVenta - totGastos;
+  const rinde     = totKgCarne && totKgNeto ? totKgCarne / totKgNeto * 100 : null;
+  const pxKgCarne = totVenta && totKgCarne  ? totVenta / totKgCarne  : null;
+  const pxKgPie   = totVenta && totKgNeto   ? totVenta / totKgNeto   : null;
+  const pxCabeza  = totVenta && totCabezas  ? totVenta / totCabezas  : null;
+  const gastoXKgC = totGastos && totKgCarne ? totGastos / totKgCarne : null;
+  const gastoXKgP = totGastos && totKgNeto  ? totGastos / totKgNeto  : null;
+  const netoXKgC  = pxKgCarne && gastoXKgC  ? pxKgCarne - gastoXKgC  : null;
+  const netoXKgP  = pxKgPie   && gastoXKgP  ? pxKgPie   - gastoXKgP  : null;
+
+  fechas.sort();
+  const fechaMin = fechas[0], fechaMax = fechas[fechas.length-1];
+
+  const fmtM  = v => v ? '$' + Number(v).toLocaleString('es-AR',{maximumFractionDigits:0}) : '—';
+  const fmtMd = v => v ? '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  const fmtKg = v => v ? Number(v).toLocaleString('es-AR') + ' kg' : '—';
+  const card  = (label, value, color='var(--white)') => `
+    <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border)">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--text2);margin-bottom:6px;text-transform:uppercase">${label}</div>
+      <div style="font-size:15px;font-weight:700;color:${color};font-family:var(--mono)">${value}</div>
+    </div>`;
+
+  document.getElementById('consol-subtitulo').textContent =
+    ids.length + ' operaciones · ' + (fechaMin === fechaMax ? fechaMin : fechaMin + ' → ' + fechaMax);
+
+  const listaOps = ops.map(op => `<span style="font-family:var(--mono);font-size:11px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 8px;color:var(--accent)">#${op.numero}</span>`).join(' ');
+
+  body.innerHTML = `
+  <div style="margin-bottom:16px">
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);margin-bottom:8px">OPERACIONES INCLUIDAS</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${listaOps}</div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+    ${card('Vendedor/es', [...vendedores].join(', '))}
+    ${card('Comprador/es', [...compradores].join(', '))}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+    ${card('Cabezas', totCabezas)}
+    ${card('Kg Balanza', fmtKg(totKgNeto||null), 'var(--accent2)')}
+    ${card('Kg Carne', fmtKg(totKgCarne||null), '#4ade80')}
+    ${card('Operaciones', ids.length, 'var(--text2)')}
+  </div>
+  ${rinde ? `
+  <div style="background:var(--bg3);border-radius:10px;padding:16px;margin-bottom:16px;text-align:center;border:1px solid ${rinde>=55?'#4ade80':rinde>=48?'#facc15':'var(--danger)'}">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:4px">RINDE PONDERADO</div>
+    <div style="font-size:36px;font-weight:800;color:${rinde>=55?'#4ade80':rinde>=48?'#facc15':'var(--danger)'};font-family:var(--mono)">${rinde.toFixed(2)}%</div>
+    <div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin-top:4px">Total Kg Carne / Total Kg Balanza</div>
+  </div>` : ''}
+  ${totVenta ? `
+  <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">INDICADORES ECONÓMICOS</div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px">
+    ${card('Total Venta', fmtM(totVenta), '#facc15')}
+    ${card('Neto Total', fmtM(neto), neto>=0?'#4ade80':'var(--danger)')}
+  </div>
+  <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">PRECIO FINAL PROMEDIO</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+    ${card('x Kg Carne', fmtMd(pxKgCarne), '#facc15')}
+    ${card('x Kg Al Pie', fmtMd(pxKgPie), '#facc15')}
+    ${card('x Cabeza', fmtM(pxCabeza), '#facc15')}
+  </div>
+  <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">GASTOS</div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+    ${card('Total Gastos', fmtM(totGastos), 'var(--danger)')}
+    ${card('Gasto x Kg Carne', fmtMd(gastoXKgC), 'var(--danger)')}
+    ${card('Gasto x Kg Al Pie', fmtMd(gastoXKgP), 'var(--danger)')}
+  </div>
+  <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">NETO UNITARIO</div>
+  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+    ${card('Neto x Kg Carne', fmtMd(netoXKgC), netoXKgC>=0?'#4ade80':'var(--danger)')}
+    ${card('Neto x Kg Al Pie', fmtMd(netoXKgP), netoXKgP>=0?'#4ade80':'var(--danger)')}
+  </div>` : '<div style="background:rgba(250,204,21,0.08);border:1px solid var(--warn);border-radius:8px;padding:10px 14px;font-family:var(--mono);font-size:11px;color:var(--warn);margin-top:16px">⚠ Sin costeo en las operaciones seleccionadas — solo se muestran datos productivos</div>'}
+  `;
+}
+
+function cerrarConsolidado() {
+  document.getElementById('modal-consolidado').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
 async function cargarParametros() {
   // Gastos fijos
   const { data: p } = await sb.from('parametros_costos').select('*').eq('id', 1).single();
