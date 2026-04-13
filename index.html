@@ -2455,8 +2455,7 @@ async function cargarPablo() {
           <label>Observaciones</label>
           <input type="text" id="pablo-obs-${op.id}" placeholder="Obs">
         </div>
-      </div>`;
-  }).join('') + (ops.map(op => `
+      </div>
       <div style="height:1px;background:var(--border);margin:12px 0"></div>
       <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--accent2);text-transform:uppercase;margin-bottom:10px">🚛 Datos del Transporte</div>
       <div class="form-grid" style="gap:12px">
@@ -2484,7 +2483,8 @@ async function cargarPablo() {
           <input type="time" id="pablo-hsalida-${op.id}">
         </div>
       </div>
-    </div>`).join(''));
+    </div>`;
+  }).join('');
 }
 
 function actualizarSubcatPablo(opId, idx) {
