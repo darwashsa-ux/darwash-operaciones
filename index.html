@@ -845,7 +845,7 @@
           </div>
           <div class="field">
             <label>Fecha Carga *</label>
-            <input type="date" id="c-f-carga">
+            <input type="date" id="c-f-carga" onchange="limpiarErrorCampo(this)">
           </div>
           <div class="field">
             <label>Consignataria *</label>
@@ -901,7 +901,7 @@
           </div>
           <div class="field">
             <label>Destino *</label>
-            <select id="c-destino" onchange="alCambiarDestino()">
+            <select id="c-destino" onchange="alCambiarDestino();limpiarErrorCampo(this)">
               <option value="">— Seleccioná —</option>
               <option value="Faena Cons">Faena Cons</option>
               <option value="Faena UE">Faena UE</option>
@@ -2318,15 +2318,62 @@ function alSeleccionarOrigen() {
 // ════════════════════════════════════════════════════
 //  GUARDAR OPERACIÓN
 // ════════════════════════════════════════════════════
+function limpiarErrorCampo(el) {
+  if (!el) return;
+  el.style.borderColor = '';
+  el.classList.remove('campo-error');
+  const msg = el.parentNode.querySelector('.msg-error-campo');
+  if (msg) msg.remove();
+}
+
 async function guardarOperacion() {
-  const titular  = document.getElementById('c-titular').value.trim();
-  const fCarga   = document.getElementById('c-f-carga').value;
-  const comprador= document.getElementById('c-comprador').value.trim();
-  const por      = document.getElementById('c-por').value;
+  // Limpiar errores previos
+  document.querySelectorAll('.campo-error').forEach(el => {
+    el.style.borderColor = '';
+    el.classList.remove('campo-error');
+  });
+  document.querySelectorAll('.msg-error-campo').forEach(el => el.remove());
+
+  const titular   = document.getElementById('c-titular').value.trim();
+  const fCarga    = document.getElementById('c-f-carga').value;
+  const comprador = document.getElementById('c-comprador').value.trim();
+  const por       = document.getElementById('c-por').value;
+  const destino   = document.getElementById('c-destino').value;
+  const cats      = leerCategorias().filter(r => r.cant > 0);
   const cantCargas = parseInt(document.getElementById('c-cant-cargas').value) || 1;
 
-  if (!titular || !fCarga || !comprador || !por) {
-    mostrarAlerta('alert-carga', 'error', '⚠ Completá al menos Vendedor, Fecha de Carga, Consignataria y Comprador');
+  // Validar campos obligatorios
+  const errores = [];
+  const marcarError = (id, msg) => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.borderColor = 'var(--danger)';
+      el.classList.add('campo-error');
+      const span = document.createElement('div');
+      span.className = 'msg-error-campo';
+      span.style.cssText = 'color:var(--danger);font-size:11px;margin-top:3px;font-family:var(--mono)';
+      span.textContent = '⚠ ' + msg;
+      el.parentNode.appendChild(span);
+    }
+    errores.push(msg);
+  };
+
+  if (!por)       marcarError('c-por',      'Seleccioná la consignataria');
+  if (!titular)   marcarError('c-titular',  'Ingresá el vendedor');
+  if (!fCarga)    marcarError('c-f-carga',  'Ingresá la fecha de carga');
+  if (!destino)   marcarError('c-destino',  'Seleccioná el destino');
+  if (!comprador) marcarError('c-comprador','Ingresá el comprador');
+  if (cats.length === 0) {
+    mostrarAlerta('alert-carga', 'error', '⚠ Agregá al menos una categoría con cabezas en la sección Hacienda');
+    document.getElementById('page-nueva-carga').querySelector('#filas-cat').style.outline = '2px solid var(--danger)';
+    setTimeout(() => { document.getElementById('page-nueva-carga').querySelector('#filas-cat').style.outline = ''; }, 3000);
+    errores.push('hacienda');
+  }
+
+  if (errores.length > 0) {
+    mostrarAlerta('alert-carga', 'error', `⚠ Completá los campos obligatorios marcados en rojo`);
+    // Scroll al primer error
+    document.querySelector('.campo-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
@@ -2376,7 +2423,14 @@ async function guardarOperacion() {
     const op = { ...baseOp, numero: nextNum + i };
     const { data, error } = await sb.from('operaciones').insert([op]).select();
     if (error) {
-      mostrarAlerta('alert-carga', 'error', `❌ Error en carga ${i+1}: ${error.message}`);
+      // Traducir errores comunes a mensajes entendibles
+      let msg = error.message;
+      if (error.message.includes('operaciones_estado_check'))  msg = 'Estado inválido. Contactá al admin.';
+      if (error.message.includes('operaciones_destino_check')) msg = 'Destino inválido. Revisá el campo Destino.';
+      if (error.message.includes('operaciones_subcat_check'))  msg = 'Subcategoría no válida para esa categoría.';
+      if (error.message.includes('not-null'))                  msg = 'Falta completar un campo obligatorio.';
+      if (error.message.includes('foreign key'))               msg = 'Error de referencia — contactá al admin.';
+      mostrarAlerta('alert-carga', 'error', `❌ Error en carga ${i+1}: ${msg}`);
       btn.disabled = false;
       btn.textContent = '✓ REGISTRAR OPERACIÓN';
       return;
