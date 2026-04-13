@@ -3466,12 +3466,14 @@ function calcularKgPieCat(idx) {
   const rindeEst  = parseFloat(document.getElementById(`rom-dc-rindeest-${idx}`)?.value) || 0;
   const kgPieInp  = document.getElementById(`rom-dc-kgpie-${idx}`);
   const resEl     = document.getElementById(`rom-dc-result-${idx}`);
-  // Si hay kg carne y rinde estimado → calcular kg pie automático
   if (kgCarne && rindeEst && kgPieInp) {
-    const kgPieCalc = (kgCarne / (rindeEst / 100));
+    const kgPieCalc = kgCarne / (rindeEst / 100);
     kgPieInp.value = kgPieCalc.toFixed(0);
     kgPieInp.style.borderColor = 'var(--warn)';
-    if (resEl) { resEl.textContent = `Rinde: ${rindeEst}% (est.) → Kg pie: ${kgPieCalc.toLocaleString('es-AR',{maximumFractionDigits:0})} kg`; resEl.style.color = 'var(--warn)'; }
+    if (resEl) {
+      resEl.textContent = `Rinde: ${rindeEst}% (est.) → Kg pie: ${Math.round(kgPieCalc).toLocaleString('es-AR')} kg`;
+      resEl.style.color = 'var(--warn)';
+    }
   } else {
     actualizarRindeDesglose(idx);
   }
@@ -3490,6 +3492,16 @@ function actualizarRindeDesglose(idx) {
     el.textContent = 'Rinde: —';
     el.style.color = 'var(--text2)';
   }
+}
+
+async function editarRomaneo(opId) {
+  const { data: op }  = await sb.from('operaciones').select('categorias_json').eq('id', opId).single();
+  const { data: rom } = await sb.from('romaneos').select('*').eq('operacion_id', opId).maybeSingle();
+  const { data: seg } = await sb.from('seguimiento').select('peso_neto').eq('operacion_id', opId).maybeSingle();
+  const cats = op?.categorias_json?.filter(r => r.cant > 0) || [];
+  const el = document.getElementById('modal-tab-romaneo');
+  el.innerHTML = '<div class="detail-section"><div class="detail-section-title" style="color:#4ade80">✏ Editar Romaneo</div>' +
+    formRomaneo(opId, rom, seg, cats) + '</div>';
 }
 
 async function guardarRomaneo(opId, romId) {
