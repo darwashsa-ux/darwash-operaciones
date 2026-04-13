@@ -4028,7 +4028,6 @@ async function renderModalCosteo(op, seg, rom) {
   const el = document.getElementById('modal-tab-costeo');
   el.innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
 
-  // Traer parámetros y distancia de la planta
   const { data: params } = await sb.from('parametros_costos').select('*').eq('id',1).single();
   const { data: planta } = op.planta
     ? await sb.from('plantas_distancias').select('km').ilike('planta', '%' + op.planta + '%').maybeSingle()
@@ -4039,8 +4038,10 @@ async function renderModalCosteo(op, seg, rom) {
   const cabezas    = seg?.cant_real || op.cant || 0;
   const kgCarne    = rom?.kg_carne_total ? Number(rom.kg_carne_total) : null;
   const kgBalanza  = seg?.peso_neto ? Number(seg.peso_neto) : null;
+  const cats       = op.categorias_json?.filter(r => r.cant > 0) || [];
+  const multiCat   = cats.length > 1;
+  const desglose   = rom?.desglose_cat || [];
 
-  // Calcular flete automático
   let fleteAuto = null;
   if (km && params) {
     const tarifaKm = tipoCamion === 'doble' ? params.flete_km_doble : params.flete_km_simple;
@@ -4049,33 +4050,56 @@ async function renderModalCosteo(op, seg, rom) {
       : params.flete_arranque + (km * tarifaKm);
   }
 
-  // Traer costeo existente
   const { data: cos } = await sb.from('costeos').select('*').eq('operacion_id', op.id).maybeSingle();
-
-  // Precio pactado desde la operación
   const precioPactado = op.vta ? Number(op.vta) : null;
+  const flete  = cos?.flete  || fleteAuto;
+  const pesada = cos?.pesada || params?.pesada || 20000;
+  const senasa = cos?.guia_senasa || (params?.guia_senasa * cabezas) || null;
+  const comuna = cos?.guia_comuna || (params?.guia_comuna * cabezas) || null;
 
-  // Valores a mostrar (costeo guardado o calculados)
-  const precio     = cos?.precio_venta || null;
-  const flete      = cos?.flete || fleteAuto;
-  const pesada     = cos?.pesada || params?.pesada || 20000;
-  const senasa     = cos?.guia_senasa || (params?.guia_senasa * cabezas) || null;
-  const comuna     = cos?.guia_comuna || (params?.guia_comuna * cabezas) || null;
-
-  const fmtM = v => v != null ? '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0}) : '—';
-  const inp  = (id, val, color='var(--white)') =>
-    `<input type="number" id="cos-${id}" value="${val||''}" placeholder="0"
+  const fmtM = v => v != null ? '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0}) : '—';
+  const inp  = (id, val, color='var(--white)', placeholder='0') =>
+    `<input type="number" id="cos-${id}" value="${val||''}" placeholder="${placeholder}"
      style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:${color};font-size:13px">`;
+
+  // Desglose por cat para costeo
+  let desgloseCatHtml = '';
+  if (multiCat) {
+    const preciosCat = cos?.precios_cat || [];
+    desgloseCatHtml = `
+    <div style="margin-bottom:16px">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);margin-bottom:8px">PRECIO POR CATEGORÍA (opcional)</div>
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px;padding:0 2px">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2)">CATEGORÍA</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text2)">KG CARNE</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--accent2)">$ PACTADO/KG</div>
+        <div style="font-family:var(--mono);font-size:9px;color:#facc15">SUBTOTAL</div>
+      </div>`;
+    cats.forEach((c, i) => {
+      const d    = desglose.find(r => r.cat === c.cat) || {};
+      const prev = preciosCat.find(r => r.cat === c.cat) || {};
+      const kgC  = d.kg_carne || '';
+      desgloseCatHtml += `
+      <div style="display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:6px;margin-bottom:6px;align-items:center">
+        <div style="font-family:var(--mono);font-size:12px;padding:8px;background:var(--bg3);border-radius:6px;font-weight:600">${c.cat}${c.subcat?' - '+c.subcat:''}</div>
+        <div style="font-family:var(--mono);font-size:12px;padding:8px;color:#4ade80">${kgC ? Number(kgC).toLocaleString('es-AR')+' kg' : '—'}</div>
+        <input type="number" id="cos-pc-${i}" value="${prev.precio||''}" placeholder="$/kg" step="any"
+          oninput="calcularSubtotalCat(${i},${kgC||0})"
+          style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--accent2);font-family:var(--mono);font-size:12px">
+        <div id="cos-st-${i}" style="font-family:var(--mono);font-size:12px;padding:8px;color:#facc15;font-weight:600">—</div>
+      </div>`;
+    });
+    desgloseCatHtml += '</div>';
+  }
 
   el.innerHTML = `
   <div class="detail-section">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="detail-section-title" style="color:#facc15;margin-bottom:0">💰 Costeo</div>
-      ${cos ? '<button onclick="editarCosteo('+op.id+')" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer">✏ EDITAR</button>' : ''}
+      ${cos ? `<button onclick="editarCosteo(${op.id})" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer">✏ EDITAR</button>` : ''}
     </div>
 
     ${!cos ? `
-    <!-- DATOS BASE (readonly) -->
     <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;font-family:var(--mono)">
       <div style="color:var(--text2);margin-bottom:6px;font-size:10px;letter-spacing:1px">DATOS BASE</div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
@@ -4088,7 +4112,8 @@ async function renderModalCosteo(op, seg, rom) {
       </div>
     </div>
 
-    <!-- FORMULARIO -->
+    ${desgloseCatHtml}
+
     <div class="detail-grid">
       <div class="detail-item">
         <div class="detail-item-label">💰 Total Venta $ ⭐</div>
@@ -4116,7 +4141,6 @@ async function renderModalCosteo(op, seg, rom) {
       </div>
     </div>
 
-    <!-- PREVIEW RESULTADO -->
     <div id="cos-preview" style="margin-top:16px;background:var(--bg3);border-radius:8px;padding:14px;font-family:var(--mono);font-size:12px">
       <div style="color:var(--text2);font-size:10px;letter-spacing:1px;margin-bottom:8px">PREVIEW</div>
       <div style="color:var(--text2)">Ingresá el total de venta para calcular</div>
@@ -4132,16 +4156,43 @@ async function renderModalCosteo(op, seg, rom) {
         💾 GUARDAR
       </button>
     </div>
-    ` : renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas)}
+    ` : renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas, cats, desglose)}
   </div>`;
+
+  // Guardar cats en global para guardarCosteo
+  window._cosCats = cats;
+  window._cosDesglose = desglose;
 }
 
-function renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas) {
+function renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas, cats=[], desglose=[]) {
   const totalVenta  = Number(cos.total_venta);
   const totalCostos = Number(cos.total_costos);
   const neto        = totalVenta - totalCostos;
   const dif         = cos.dif_consignataria ? Number(cos.dif_consignataria) : null;
   const fmtM = v => '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+
+  let desgloseCatHtml = '';
+  if (cos.precios_cat?.length > 0) {
+    desgloseCatHtml = `<div style="margin:12px 0">
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);margin-bottom:8px">DESGLOSE POR CATEGORÍA</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono)">
+      <thead><tr style="color:var(--text2);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:6px 8px">Cat</th>
+        <th style="padding:6px 8px">Kg Carne</th>
+        <th style="padding:6px 8px;color:var(--accent2)">$/Kg</th>
+        <th style="padding:6px 8px;color:#facc15">Subtotal</th>
+      </tr></thead><tbody>`;
+    cos.precios_cat.forEach(r => {
+      desgloseCatHtml += `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 8px;font-weight:600">${r.cat}${r.subcat?' - '+r.subcat:''}</td>
+        <td style="padding:6px 8px;text-align:center;color:#4ade80">${r.kg_carne ? Number(r.kg_carne).toLocaleString('es-AR')+' kg' : '—'}</td>
+        <td style="padding:6px 8px;text-align:center;color:var(--accent2)">${r.precio ? fmtM(r.precio) : '—'}</td>
+        <td style="padding:6px 8px;text-align:center;color:#facc15;font-weight:700">${r.subtotal ? fmtM(r.subtotal) : '—'}</td>
+      </tr>`;
+    });
+    desgloseCatHtml += '</tbody></table></div>';
+  }
+
   return `
   <div class="detail-grid">
     <div class="detail-item"><div class="detail-item-label">Total Venta</div>
@@ -4155,6 +4206,7 @@ function renderCosteoGuardado(cos, kgCarne, kgBalanza, cabezas) {
     <div class="detail-item"><div class="detail-item-label">$ x Cabeza</div>
       <div class="detail-item-value">${cabezas ? fmtM(totalVenta/cabezas) : '—'}</div></div>
   </div>
+  ${desgloseCatHtml}
   <div style="height:1px;background:var(--border);margin:12px 0"></div>
   <div class="detail-grid">
     <div class="detail-item"><div class="detail-item-label">Flete</div><div class="detail-item-value">${fmtM(cos.flete)}</div></div>
@@ -4221,6 +4273,28 @@ function calcularPreviewCosteo(kgCarne, kgBalanza, cabezas) {
     </div>`;
 }
 
+function calcularSubtotalCat(idx, kgCarne) {
+  const precio = parseFloat(document.getElementById(`cos-pc-${idx}`)?.value) || 0;
+  const el = document.getElementById(`cos-st-${idx}`);
+  if (!el) return;
+  if (precio && kgCarne) {
+    el.textContent = '$' + Math.round(precio * kgCarne).toLocaleString('es-AR');
+  } else {
+    el.textContent = '—';
+  }
+}
+
+async function editarCosteo(opId) {
+  const { data: op }  = await sb.from('operaciones').select('*').eq('id', opId).single();
+  const { data: seg } = await sb.from('seguimiento').select('*').eq('operacion_id', opId).maybeSingle();
+  const { data: rom } = await sb.from('romaneos').select('*').eq('operacion_id', opId).maybeSingle();
+  // Borrar costeo existente para mostrar formulario
+  await sb.from('costeos').delete().eq('operacion_id', opId);
+  await sb.from('seguimiento').update({ costeo: false, f_costeo: null }).eq('operacion_id', opId);
+  await sb.from('operaciones').update({ estado: 'romaneo_ok', updated_at: new Date() }).eq('id', opId);
+  await renderModalCosteo(op, seg, rom);
+}
+
 async function guardarCosteo(opId, kgCarne, kgBalanza, cabezas) {
   const totalVenta  = parseFloat(document.getElementById('cos-total')?.value);
   const pactado     = parseFloat(document.getElementById('cos-pactado')?.value) || null;
@@ -4231,23 +4305,32 @@ async function guardarCosteo(opId, kgCarne, kgBalanza, cabezas) {
 
   if (!totalVenta) { alert('Ingresá el total de venta'); return; }
 
-  const totalCostos       = flete + pesada + senasa + comuna;
-  const precioXKgCarne    = kgCarne ? totalVenta / kgCarne : null;
-  const totalPactado      = pactado && kgCarne ? pactado * kgCarne : null;
-  const difConsignataria  = totalPactado ? totalVenta - totalPactado : null;
+  // Leer precios por categoría si hay multi-cat
+  const cats = window._cosCats || [];
+  const desglose = window._cosDesglose || [];
+  const preciosCat = cats.length > 1 ? cats.map((c, i) => {
+    const d = desglose.find(r => r.cat === c.cat) || {};
+    const precio = parseFloat(document.getElementById(`cos-pc-${i}`)?.value) || null;
+    return precio ? { cat: c.cat, subcat: c.subcat||'', kg_carne: d.kg_carne||null, precio, subtotal: precio * (d.kg_carne||0) } : null;
+  }).filter(Boolean) : null;
+
+  const totalCostos      = flete + pesada + senasa + comuna;
+  const precioXKgCarne   = kgCarne ? totalVenta / kgCarne : null;
+  const totalPactado     = pactado && kgCarne ? pactado * kgCarne : null;
+  const difConsignataria = totalPactado ? totalVenta - totalPactado : null;
 
   const payload = {
-    operacion_id:       opId,
-    precio_venta:       precioXKgCarne,
-    precio_pactado:     pactado,
-    total_venta:        totalVenta,
-    flete,
-    pesada,
-    guia_senasa:        senasa,
-    guia_comuna:        comuna,
-    total_costos:       totalCostos,
-    resultado_neto:     totalVenta - totalCostos,
-    dif_consignataria:  difConsignataria,
+    operacion_id:      opId,
+    precio_venta:      precioXKgCarne,
+    precio_pactado:    pactado,
+    total_venta:       totalVenta,
+    flete, pesada,
+    guia_senasa:       senasa,
+    guia_comuna:       comuna,
+    total_costos:      totalCostos,
+    resultado_neto:    totalVenta - totalCostos,
+    dif_consignataria: difConsignataria,
+    precios_cat:       preciosCat,
   };
 
   const { data: existing } = await sb.from('costeos').select('id').eq('operacion_id', opId).maybeSingle();
@@ -4256,16 +4339,14 @@ async function guardarCosteo(opId, kgCarne, kgBalanza, cabezas) {
     : await sb.from('costeos').insert([payload]);
 
   if (error) { alert('Error: ' + error.message); return; }
-
   await sb.from('seguimiento').update({ costeo: true, f_costeo: new Date().toISOString().split('T')[0] }).eq('operacion_id', opId);
   await sb.from('operaciones').update({ estado: 'finalizada', updated_at: new Date() }).eq('id', opId);
   await abrirDetalleOperacion(opId);
-  // ir a tab costeo
   const tabs = document.querySelectorAll('.modal-tab');
   tabs.forEach(t => t.classList.remove('active'));
-  tabs[4].classList.add('active');
-  ['detalle','archivos','historial','romaneo','costeo'].forEach((t,i) => {
-    document.getElementById('modal-tab-' + t).style.display = i === 4 ? '' : 'none';
+  tabs[6].classList.add('active');
+  ['resumen','detalle','archivos','historial','pesada','romaneo','costeo'].forEach((t,i) => {
+    document.getElementById('modal-tab-' + t).style.display = i === 6 ? '' : 'none';
   });
 }
 
