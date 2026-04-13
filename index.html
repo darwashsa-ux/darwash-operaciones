@@ -3035,6 +3035,10 @@ function renderModalDetalle(op, seg, rom) {
     '<div class="detail-item"><div class="detail-item-label">Cant. estimada</div><div class="detail-item-value">' + fmt(op.cant) + ' ' + (op.cat||'') + ' ' + (op.raza||'') + '</div></div>' +
     '<div class="detail-item"><div class="detail-item-label">Kg estimados</div><div class="detail-item-value">' + fmtPeso(op.kgs) + '</div></div>' +
     '<div class="detail-item"><div class="detail-item-label">Destino</div><div class="detail-item-value">' + fmt(op.destino) + '</div></div>' +
+    (op.categorias_json?.length > 1 ?
+      '<div class="detail-item" style="grid-column:1/-1"><div class="detail-item-label">Composición del lote</div><div class="detail-item-value">' +
+      op.categorias_json.map(r => `<span style="font-family:var(--mono);font-size:12px;background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:2px 8px;margin-right:6px"><strong style="color:var(--accent)">${r.cant}</strong> ${r.cat}${r.subcat?' '+r.subcat:''}</span>`).join('') +
+      '</div></div>' : '') +
     (seg && seg.cant_real ? '<div class="detail-item"><div class="detail-item-label">Cant. real</div><div class="detail-item-value" style="color:var(--accent)">' + seg.cant_real + ' ' + (seg.cat_real||'') + '</div></div>' : '') +
     (seg && seg.kg_pie ? '<div class="detail-item"><div class="detail-item-label">Kg pie real</div><div class="detail-item-value" style="color:var(--accent)">' + fmtPeso(seg.kg_pie) + '</div></div>' : '') +
     '</div></div>' +
