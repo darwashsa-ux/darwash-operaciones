@@ -883,13 +883,6 @@
         <div class="card-title">③ Hacienda</div>
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))">
           <div class="field">
-            <label>Raza</label>
-            <select id="c-raza">
-              <option value="">—</option>
-              <option>MZO</option><option>HA</option>
-            </select>
-          </div>
-          <div class="field">
             <label>Kgs estimados</label>
             <input type="number" id="c-kgs" placeholder="Ej: 450">
           </div>
@@ -908,10 +901,20 @@
           </div>
         </div>
 
+        <!-- TABLA MULTI-RAZA -->
+        <div style="margin-top:20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2)">RAZAS</div>
+            <button type="button" onclick="agregarFilaRaza()" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;background:transparent;border:1px solid var(--accent2);border-radius:4px;color:var(--accent2);cursor:pointer">+ AGREGAR</button>
+          </div>
+          <div id="filas-raza"></div>
+        </div>
+
         <!-- Campos ocultos para compatibilidad -->
         <input type="hidden" id="c-cat">
         <input type="hidden" id="c-cant">
         <input type="hidden" id="c-subcat">
+        <input type="hidden" id="c-raza">
       </div>
       </div>
 
@@ -1630,7 +1633,60 @@ function leerCategorias() {
   return rows;
 }
 
-function resetearFilasCat() {
+// ── MULTI-RAZA NUEVA CARGA ──
+let filaRazaIdx = 0;
+
+function agregarFilaRaza(raza='', cant='') {
+  const idx = filaRazaIdx++;
+  const div = document.createElement('div');
+  div.id = `fila-raza-${idx}`;
+  div.style.cssText = 'display:grid;grid-template-columns:1fr 100px 36px;gap:8px;margin-bottom:8px;align-items:center';
+  div.innerHTML = `
+    <select id="fraza-${idx}" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px;width:100%">
+      <option value="">— Raza —</option>
+      <option ${raza==='MZO'?'selected':''}>MZO</option>
+      <option ${raza==='HA'?'selected':''}>HA</option>
+    </select>
+    <input type="number" id="frcant-${idx}" value="${cant}" placeholder="Cab" min="1"
+      style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--accent2);font-family:var(--mono);font-size:13px;font-weight:600;width:100%">
+    <button type="button" onclick="eliminarFilaRaza(${idx})" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--danger);cursor:pointer;padding:8px;font-size:14px">✕</button>`;
+  document.getElementById('filas-raza').appendChild(div);
+  actualizarRazaHidden();
+}
+
+function eliminarFilaRaza(idx) {
+  document.getElementById(`fila-raza-${idx}`)?.remove();
+  actualizarRazaHidden();
+}
+
+function actualizarRazaHidden() {
+  const razas = leerRazas();
+  if (razas.length === 1) {
+    document.getElementById('c-raza').value = razas[0].raza;
+  } else if (razas.length > 1) {
+    document.getElementById('c-raza').value = 'VARIAS';
+  } else {
+    document.getElementById('c-raza').value = '';
+  }
+}
+
+function leerRazas() {
+  const rows = [];
+  document.querySelectorAll('[id^="fila-raza-"]').forEach(div => {
+    const idx  = div.id.replace('fila-raza-','');
+    const raza = document.getElementById(`fraza-${idx}`)?.value  || '';
+    const cant = parseInt(document.getElementById(`frcant-${idx}`)?.value) || 0;
+    if (raza) rows.push({ raza, cant });
+  });
+  return rows;
+}
+
+function resetearFilasRaza() {
+  document.getElementById('filas-raza').innerHTML = '';
+  filaRazaIdx = 0;
+  document.getElementById('c-raza').value = '';
+  agregarFilaRaza();
+}
   document.getElementById('filas-cat').innerHTML = '';
   filaCatIdx = 0;
   document.getElementById('total-cab-display').textContent = '0 cab';
@@ -2121,6 +2177,8 @@ async function guardarOperacion() {
     subcat:       document.getElementById('c-subcat').value || null,
     categorias_json: leerCategorias().filter(r => r.cant > 0),
     raza:         document.getElementById('c-raza').value,
+    razas_json:   leerRazas().filter(r => r.cant > 0),
+    raza:         document.getElementById('c-raza').value,
     kgs:          parseFloat(document.getElementById('c-kgs').value)  || null,
     destino:      document.getElementById('c-destino').value,
     comprador,
@@ -2198,6 +2256,8 @@ function limpiarFormCarga() {
   if (subcatEl) { subcatEl.innerHTML = '<option value="">—</option>'; subcatEl.disabled = false; }
   // Resetear filas de categorías
   resetearFilasCat();
+  // Resetear filas de razas
+  resetearFilasRaza();
   // Resetear cantidad de cargas a 1
   const cantEl = document.getElementById('c-cant-cargas');
   if (cantEl) { cantEl.value = 1; actualizarLabelCargas(1); }
@@ -2215,7 +2275,7 @@ let opsCache  = []; // cache para filtros client-side
 async function cargarSeguimiento() {
   document.getElementById('tabla-seguimiento').innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
   const { data: ops } = await sb.from('operaciones')
-    .select('id, numero, f_carga, titular, por, cant, cat, subcat, categorias_json, raza, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie, peso_neto, f_pesada, cant_real, cat_real)')
+    .select('id, numero, f_carga, titular, por, cant, cat, subcat, categorias_json, raza, razas_json, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie, peso_neto, f_pesada, cant_real, cat_real)')
     .order('numero', { ascending: false });
   const opIds = (ops || []).map(o => o.id);
   const { data: roms } = opIds.length
@@ -2555,7 +2615,7 @@ function renderTablaOps(ops, detallado) {
       <td style="font-family:var(--mono);font-size:12px">${op.f_carga || '—'}</td>
       <td><span style="font-family:var(--mono);font-size:10px;color:var(--accent2)">${op.por || '—'}</span></td>
       <td>${op.titular || '—'}</td>
-      <td>${op.cant || '?'} <strong>${op.categorias_json?.length > 1 ? 'VARIAS' : (op.cat||'')}</strong> ${op.raza || ''}${op.categorias_json?.length > 1 ? '<br><span style="color:var(--text2);font-size:10px;font-family:var(--mono)">' + op.categorias_json.map(r => r.cant+' '+r.cat).join(' + ') + '</span>' : ''}</td>
+      <td>${op.cant || '?'} <strong>${op.categorias_json?.length > 1 ? 'VARIAS' : (op.cat||'')}</strong> ${op.razas_json?.length > 1 ? 'VARIAS' : (op.raza||'')}${op.categorias_json?.length > 1 ? '<br><span style="color:var(--text2);font-size:10px;font-family:var(--mono)">' + op.categorias_json.map(r => r.cant+' '+r.cat).join(' + ') + '</span>' : ''}${op.razas_json?.length > 1 ? '<br><span style="color:var(--accent2);font-size:10px;font-family:var(--mono)">' + op.razas_json.map(r => r.cant+' '+r.raza).join(' + ') + '</span>' : ''}</td>
       <td>${op.comprador || '—'} <span style="color:var(--text2);font-size:12px">(${op.planta || '?'})</span></td>
       <td><span class="estado-badge estado-${op.estado}">${op.estado}</span></td>
       <td>${['administrador','completo','admin'].includes(usuario?.rol) && op.estado === 'pendiente' ? `
@@ -2580,8 +2640,9 @@ function renderTablaOps(ops, detallado) {
       <td class="col-hac">
         <span style="font-family:var(--mono);font-size:12px">${op.seguimiento?.[0]?.cant_real || op.cant || '?'}</span>
         <strong style="color:var(--white)">${op.seguimiento?.[0]?.cat_real || (op.categorias_json?.length > 1 ? 'VARIAS' : op.cat) || ''}</strong>
-        <span style="color:var(--text2);font-size:11px">${op.raza || ''}</span>
+        <span style="color:var(--text2);font-size:11px">${op.razas_json?.length > 1 ? 'VARIAS' : (op.raza||'')}</span>
         ${op.categorias_json?.length > 1 ? '<span style="color:var(--text2);font-size:10px;display:block;font-family:var(--mono)">' + op.categorias_json.map(r => r.cant + ' ' + r.cat).join(' + ') + '</span>' : ''}
+        ${op.razas_json?.length > 1 ? '<span style="color:var(--accent2);font-size:10px;display:block;font-family:var(--mono)">' + op.razas_json.map(r => r.cant + ' ' + r.raza).join(' + ') + '</span>' : ''}
         ${op.seguimiento?.[0]?.cant_real ? '<span style="color:var(--text2);font-size:10px;display:block;font-family:var(--mono)">est. ' + (op.cant||'?') + '</span>' : ''}
       </td>
       <td class="col-comp"><span style="font-weight:500">${op.comprador || '—'}</span> <span style="color:var(--text2);font-size:11px">${op.planta ? '('+op.planta+')' : ''}</span></td>
@@ -3470,6 +3531,7 @@ window.onload = async () => {
 
   // Inicializar fila de categoría vacía en nueva carga
   agregarFilaCat();
+  agregarFilaRaza();
 
   // Registrar Service Worker para PWA
   if ('serviceWorker' in navigator) {
