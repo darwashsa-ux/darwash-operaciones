@@ -888,26 +888,24 @@
           </div>
         </div>
 
-        <!-- TABLA MULTI-CATEGORÍA -->
+        <!-- TABLA COMPOSICIÓN DEL LOTE -->
         <div style="margin-top:16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2)">CATEGORÍAS / COMPOSICIÓN DEL LOTE</div>
-            <button type="button" onclick="agregarFilaCat()" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer">+ AGREGAR</button>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2)">COMPOSICIÓN DEL LOTE</div>
+            <button type="button" onclick="agregarFilaCat()" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;background:transparent;border:1px solid var(--accent);border-radius:4px;color:var(--accent);cursor:pointer">+ AGREGAR FILA</button>
+          </div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr 80px 36px;gap:6px;margin-bottom:6px;padding:0 2px">
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:1px">CATEGORÍA</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:1px">SUBCAT</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:1px">RAZA</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:1px">CAB</div>
+            <div></div>
           </div>
           <div id="filas-cat"></div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:8px 12px;background:var(--bg3);border-radius:6px">
             <span style="font-family:var(--mono);font-size:11px;color:var(--text2)">TOTAL</span>
             <span style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent)" id="total-cab-display">0 cab</span>
           </div>
-        </div>
-
-        <!-- TABLA MULTI-RAZA -->
-        <div style="margin-top:20px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2)">RAZAS</div>
-            <button type="button" onclick="agregarFilaRaza()" style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:5px 12px;background:transparent;border:1px solid var(--accent2);border-radius:4px;color:var(--accent2);cursor:pointer">+ AGREGAR</button>
-          </div>
-          <div id="filas-raza"></div>
         </div>
 
         <!-- Campos ocultos para compatibilidad -->
@@ -1566,29 +1564,31 @@ function actualizarSubcat(catId, subcatId) {
 // ── MULTI-CATEGORÍA NUEVA CARGA ──
 let filaCatIdx = 0;
 
-function agregarFilaCat(cat='', subcat='', cant='') {
+function agregarFilaCat(cat='', subcat='', raza='', cant='') {
   const idx = filaCatIdx++;
   const cats = ['VQ','VA','NOV','TM','TH','TORO','TORITO','MEJ','VACA CON CRIA','VA PREÑADA'];
   const div = document.createElement('div');
   div.id = `fila-cat-${idx}`;
-  div.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 100px 36px;gap:8px;margin-bottom:8px;align-items:center';
+  div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr 80px 36px;gap:8px;margin-bottom:8px;align-items:center';
   div.innerHTML = `
     <select id="fcat-${idx}" onchange="actualizarSubcatFila(${idx})" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px;width:100%">
       <option value="">— Categoría —</option>
       ${cats.map(c => `<option ${c===cat?'selected':''}>${c}</option>`).join('')}
     </select>
     <select id="fsubcat-${idx}" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px;width:100%">
-      <option value="">— Subcat —</option>
+      <option value="">—</option>
     </select>
-    <input type="number" id="fcant-${idx}" value="${cant}" placeholder="Cab" min="1"
+    <select id="fraza-${idx}" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px;width:100%">
+      <option value="">—</option>
+      <option ${raza==='MZO'?'selected':''}>MZO</option>
+      <option ${raza==='HA'?'selected':''}>HA</option>
+    </select>
+    <input type="number" id="fcant-${idx}" value="${cant}" placeholder="0" min="1"
       oninput="actualizarTotalCab()"
       style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--accent);font-family:var(--mono);font-size:13px;font-weight:600;width:100%">
     <button type="button" onclick="eliminarFilaCat(${idx})" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--danger);cursor:pointer;padding:8px;font-size:14px">✕</button>`;
   document.getElementById('filas-cat').appendChild(div);
-  // Si hay cat pre-cargada, poblar subcat
-  if (cat) {
-    actualizarSubcatFila(idx, subcat);
-  }
+  if (cat) actualizarSubcatFila(idx, subcat);
   actualizarTotalCab();
 }
 
@@ -1609,14 +1609,15 @@ function eliminarFilaCat(idx) {
 function actualizarTotalCab() {
   const total = leerCategorias().reduce((s, r) => s + (r.cant||0), 0);
   document.getElementById('total-cab-display').textContent = total + ' cab';
-  // Actualizar campos ocultos para compatibilidad
   const cats = leerCategorias().filter(r => r.cant > 0);
   if (cats.length > 0) {
-    // Cat predominante = la de mayor cantidad
     const pred = cats.sort((a,b) => b.cant - a.cant)[0];
-    document.getElementById('c-cat').value  = pred.cat;
+    document.getElementById('c-cat').value    = pred.cat;
     document.getElementById('c-subcat').value = pred.subcat || '';
-    document.getElementById('c-cant').value = total;
+    document.getElementById('c-cant').value   = total;
+    // Raza predominante
+    const razas = [...new Set(cats.map(r => r.raza).filter(Boolean))];
+    document.getElementById('c-raza').value   = razas.length === 1 ? razas[0] : (razas.length > 1 ? 'VARIAS' : '');
   }
 }
 
@@ -1624,10 +1625,11 @@ function leerCategorias() {
   const rows = [];
   document.querySelectorAll('[id^="fila-cat-"]').forEach(div => {
     const idx   = div.id.replace('fila-cat-','');
-    const cat   = document.getElementById(`fcat-${idx}`)?.value   || '';
-    const subcat= document.getElementById(`fsubcat-${idx}`)?.value|| '';
+    const cat   = document.getElementById(`fcat-${idx}`)?.value    || '';
+    const subcat= document.getElementById(`fsubcat-${idx}`)?.value || '';
+    const raza  = document.getElementById(`fraza-${idx}`)?.value   || '';
     const cant  = parseInt(document.getElementById(`fcant-${idx}`)?.value) || 0;
-    if (cat) rows.push({ cat, subcat, cant });
+    if (cat) rows.push({ cat, subcat, raza, cant });
   });
   return rows;
 }
@@ -2178,7 +2180,9 @@ async function guardarOperacion() {
     subcat:       document.getElementById('c-subcat').value || null,
     categorias_json: leerCategorias().filter(r => r.cant > 0),
     raza:         document.getElementById('c-raza').value,
-    razas_json:   leerRazas().filter(r => r.cant > 0),
+    razas_json:   [...new Set(leerCategorias().filter(r => r.cant > 0 && r.raza).map(r => r.raza))].map(raza => ({
+      raza, cant: leerCategorias().filter(r => r.raza === raza).reduce((s,r) => s+r.cant, 0)
+    })),
     raza:         document.getElementById('c-raza').value,
     kgs:          parseFloat(document.getElementById('c-kgs').value)  || null,
     destino:      document.getElementById('c-destino').value,
@@ -2266,10 +2270,8 @@ function limpiarFormCarga() {
   // Resetear subcat disabled
   const subcatEl = document.getElementById('c-subcat');
   if (subcatEl) { subcatEl.innerHTML = '<option value="">—</option>'; subcatEl.disabled = false; }
-  // Resetear filas de categorías
+  // Resetear filas de categorías (incluye razas ahora)
   resetearFilasCat();
-  // Resetear filas de razas
-  resetearFilasRaza();
   // Resetear cantidad de cargas a 1
   const cantEl = document.getElementById('c-cant-cargas');
   if (cantEl) { cantEl.value = 1; actualizarLabelCargas(1); }
@@ -3664,7 +3666,6 @@ window.onload = async () => {
 
   // Inicializar fila de categoría vacía en nueva carga
   agregarFilaCat();
-  agregarFilaRaza();
 
   // Registrar Service Worker para PWA
   if ('serviceWorker' in navigator) {
