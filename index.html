@@ -17,6 +17,7 @@
 <link rel="apple-touch-icon" href="icon.svg">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
   // Detectar recovery token ANTES de que Supabase procese la sesión
   (function() {
@@ -445,6 +446,56 @@
     border-radius: 10px;
     padding: 20px;
   }
+
+  .btn-periodo {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    padding: 6px 14px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-periodo:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-periodo.active-periodo { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
+
+  .ger-kpi {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ger-kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .ger-kpi.kpi-green::before  { background: #4ade80; }
+  .ger-kpi.kpi-yellow::before { background: #facc15; }
+  .ger-kpi.kpi-blue::before   { background: var(--accent2); }
+  .ger-kpi.kpi-orange::before { background: var(--warn); }
+  .ger-kpi.kpi-accent::before { background: var(--accent); }
+  .ger-kpi.kpi-red::before    { background: var(--danger); }
+  .ger-kpi-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--text2); margin-bottom: 8px; text-transform: uppercase; }
+  .ger-kpi-val   { font-family: var(--mono); font-size: 22px; font-weight: 700; }
+  .ger-kpi-sub   { font-family: var(--mono); font-size: 10px; color: var(--text2); margin-top: 4px; }
+
+  .ger-ranking-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .ger-ranking-row:last-child { border-bottom: none; }
+  .ger-ranking-num { font-family: var(--mono); font-size: 11px; color: var(--text2); width: 20px; text-align: center; }
+  .ger-ranking-nombre { flex: 1; font-size: 13px; font-weight: 500; }
+  .ger-ranking-val { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 600; }
+  .ger-bar { height: 4px; background: var(--bg3); border-radius: 2px; margin-top: 4px; }
+  .ger-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width .6s ease; }
 
   .stat-label {
     font-family: var(--mono);
@@ -1113,6 +1164,83 @@
       </div>
     </div>
 
+    <!-- ── PAGE: GERENCIAL ── -->
+    <div class="page" id="page-gerencial">
+
+      <!-- SELECTOR DE PERÍODO -->
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+        <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--text2)">PERÍODO</div>
+        <div style="display:flex;gap:6px">
+          <button onclick="setPeriodo('mes')" id="btn-periodo-mes" class="btn-periodo active-periodo">Este mes</button>
+          <button onclick="setPeriodo('trimestre')" id="btn-periodo-trimestre" class="btn-periodo">Trimestre</button>
+          <button onclick="setPeriodo('anio')" id="btn-periodo-anio" class="btn-periodo">Este año</button>
+          <button onclick="setPeriodo('todo')" id="btn-periodo-todo" class="btn-periodo">Todo</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+          <input type="date" id="ger-desde" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--white);font-family:var(--mono);font-size:11px">
+          <span style="color:var(--text2);font-size:12px">→</span>
+          <input type="date" id="ger-hasta" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--white);font-family:var(--mono);font-size:11px">
+          <button onclick="cargarGerencial()" class="btn small">↻</button>
+        </div>
+      </div>
+
+      <!-- KPIs PRINCIPALES -->
+      <div id="ger-kpis" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px"></div>
+
+      <!-- FILA 1: Evolución facturación + Estados -->
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">📈 Evolución Facturación Mensual</div>
+          <canvas id="chart-facturacion" height="200"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">🔄 Estado de Operaciones</div>
+          <canvas id="chart-estados" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- FILA 2: Precio kg carne + Rinde por frigo -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">💲 Evolución Precio x Kg Carne</div>
+          <canvas id="chart-precio" height="200"></canvas>
+        </div>
+        <div class="card">
+          <div class="card-title">🥩 Rinde Promedio por Frigorífico</div>
+          <canvas id="chart-rinde-frigo" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- FILA 3: Rankings -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="card">
+          <div class="card-title">🏭 Top Frigoríficos por Volumen</div>
+          <div id="ger-ranking-frigo"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">👨‍🌾 Top Vendedores por Cabezas</div>
+          <div id="ger-ranking-vendedor"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">📦 Cabezas por Categoría</div>
+          <canvas id="chart-categorias" height="250"></canvas>
+        </div>
+      </div>
+
+      <!-- FILA 4: Ciclo operacional + DIF consignataria -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="card">
+          <div class="card-title">⏱ Ciclo Operacional Promedio</div>
+          <div id="ger-ciclo"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">💼 DIF Consignataria Acumulada</div>
+          <div id="ger-dif"></div>
+        </div>
+      </div>
+
+    </div>
+
     <!-- ── PAGE: PARÁMETROS ── -->
     <div class="page" id="page-parametros">
       <div class="card" style="margin-bottom:20px">
@@ -1390,6 +1518,7 @@ const TABS_POR_ROL = {
     { id: 'seguimiento', label: '≡ Seguimiento' },
     { id: 'pablo',       label: '✓ Confirmaciones' },
     { id: 'dte',         label: '📄 DTE' },
+    { id: 'gerencial',   label: '📈 Gerencial' },
     { id: 'usuarios',    label: '👤 Usuarios' },
     { id: 'parametros',  label: '⚙ Parámetros' },
   ],
@@ -1399,6 +1528,7 @@ const TABS_POR_ROL = {
     { id: 'seguimiento', label: '≡ Seguimiento' },
     { id: 'pablo',       label: '✓ Confirmaciones' },
     { id: 'dte',         label: '📄 DTE' },
+    { id: 'gerencial',   label: '📈 Gerencial' },
   ],
   jefe: [
     { id: 'dashboard',   label: '▸ Dashboard' },
@@ -1466,6 +1596,7 @@ function cambiarTab(pageId, tabEl) {
   if (pageId === 'dte')         cargarDTE();
   if (pageId === 'usuarios')    cargarUsuarios();
   if (pageId === 'parametros')  cargarParametros();
+  if (pageId === 'gerencial')   cargarGerencial();
 }
 
 // ════════════════════════════════════════════════════
@@ -3722,7 +3853,303 @@ function cerrarConsolidado() {
   document.body.style.overflow = '';
 }
 
-async function cargarParametros() {
+// ════════════════════════════════════════════════════
+//  PANEL GERENCIAL
+// ════════════════════════════════════════════════════
+let gerCharts = {};
+
+function setPeriodo(p) {
+  document.querySelectorAll('.btn-periodo').forEach(b => b.classList.remove('active-periodo'));
+  document.getElementById('btn-periodo-' + p)?.classList.add('active-periodo');
+  const hoy = new Date();
+  let desde, hasta = hoy.toISOString().split('T')[0];
+  if (p === 'mes') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+  } else if (p === 'trimestre') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth() - 2, 1).toISOString().split('T')[0];
+  } else if (p === 'anio') {
+    desde = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
+  } else {
+    desde = '2020-01-01';
+  }
+  document.getElementById('ger-desde').value = desde;
+  document.getElementById('ger-hasta').value = hasta;
+  cargarGerencial();
+}
+
+async function cargarGerencial() {
+  const desde = document.getElementById('ger-desde')?.value || '2020-01-01';
+  const hasta = document.getElementById('ger-hasta')?.value || new Date().toISOString().split('T')[0];
+
+  // Traer operaciones del período
+  const { data: ops } = await sb.from('operaciones')
+    .select('id, numero, f_carga, titular, comprador, planta, cant, cat, estado')
+    .gte('f_carga', desde).lte('f_carga', hasta)
+    .order('f_carga');
+
+  if (!ops?.length) {
+    document.getElementById('ger-kpis').innerHTML = '<div class="alert info">Sin operaciones en el período seleccionado</div>';
+    return;
+  }
+
+  const ids = ops.map(o => o.id);
+  const { data: segs } = await sb.from('seguimiento').select('operacion_id, cant_real, cat_real, peso_neto, f_pablo, f_dte, f_arribo, f_romaneo, f_costeo').in('operacion_id', ids);
+  const { data: roms } = await sb.from('romaneos').select('operacion_id, kg_carne_total, rendimiento_pct').in('operacion_id', ids);
+  const { data: coss } = await sb.from('costeos').select('operacion_id, total_venta, total_costos, resultado_neto, precio_venta, dif_consignataria').in('operacion_id', ids);
+
+  const segMap = {}; (segs||[]).forEach(s => segMap[s.operacion_id] = s);
+  const romMap = {}; (roms||[]).forEach(r => romMap[r.operacion_id] = r);
+  const cosMap = {}; (coss||[]).forEach(c => cosMap[c.operacion_id] = c);
+
+  // ── CALCULAR TOTALES ──
+  let totCabezas=0, totKgCarne=0, totKgNeto=0, totVenta=0, totGastos=0, totDif=0;
+  let opConCosteo=0, opConRomaneo=0;
+
+  ops.forEach(op => {
+    const seg = segMap[op.id];
+    const rom = romMap[op.id];
+    const cos = cosMap[op.id];
+    totCabezas += Number(seg?.cant_real || op.cant || 0);
+    totKgCarne += rom?.kg_carne_total ? Number(rom.kg_carne_total) : 0;
+    totKgNeto  += seg?.peso_neto      ? Number(seg.peso_neto)      : 0;
+    totVenta   += cos?.total_venta    ? Number(cos.total_venta)    : 0;
+    totGastos  += cos?.total_costos   ? Number(cos.total_costos)   : 0;
+    totDif     += cos?.dif_consignataria ? Number(cos.dif_consignataria) : 0;
+    if (cos) opConCosteo++;
+    if (rom) opConRomaneo++;
+  });
+
+  const totNeto   = totVenta - totGastos;
+  const rindeGral = totKgCarne && totKgNeto ? (totKgCarne/totKgNeto*100) : null;
+  const pxKgCarne = totVenta && totKgCarne  ? totVenta/totKgCarne  : null;
+
+  const fmtM  = v => v ? '$' + Number(v).toLocaleString('es-AR',{maximumFractionDigits:0}) : '—';
+  const fmtMd = v => v ? '$' + Number(v).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+
+  // ── KPIs ──
+  document.getElementById('ger-kpis').innerHTML = [
+    { label: 'Cabezas Movidas',      val: totCabezas.toLocaleString('es-AR'),         sub: ops.length + ' operaciones', cls: 'kpi-accent' },
+    { label: 'Kg Carne Total',       val: totKgCarne ? (totKgCarne/1000).toFixed(1)+'t' : '—', sub: totKgNeto ? (totKgNeto/1000).toFixed(1)+'t balanza' : '—', cls: 'kpi-green' },
+    { label: 'Rinde Ponderado',      val: rindeGral ? rindeGral.toFixed(2)+'%' : '—', sub: 'Kg carne / Kg balanza', cls: 'kpi-green' },
+    { label: 'Facturación Total',    val: fmtM(totVenta),   sub: opConCosteo + ' ops costeadas', cls: 'kpi-yellow' },
+    { label: 'Resultado Neto',       val: fmtM(totNeto),    sub: 'Total venta − gastos', cls: totNeto>=0?'kpi-green':'kpi-red' },
+    { label: 'Precio x Kg Carne',   val: fmtMd(pxKgCarne), sub: 'Promedio del período', cls: 'kpi-yellow' },
+    { label: 'Total Gastos',         val: fmtM(totGastos),  sub: 'Flete + pesada + guías', cls: 'kpi-orange' },
+    { label: 'DIF Consignataria',    val: fmtM(totDif),     sub: totDif>=0?'a favor':'en contra', cls: totDif>=0?'kpi-green':'kpi-red' },
+  ].map(k => `
+    <div class="ger-kpi ${k.cls}">
+      <div class="ger-kpi-label">${k.label}</div>
+      <div class="ger-kpi-val">${k.val}</div>
+      <div class="ger-kpi-sub">${k.sub}</div>
+    </div>`).join('');
+
+  // ── CHART: ESTADOS ──
+  const estadoCount = {};
+  ops.forEach(op => { estadoCount[op.estado] = (estadoCount[op.estado]||0) + 1; });
+  const estadoLabels = Object.keys(estadoCount);
+  const estadoColors = estadoLabels.map(e => ({
+    pendiente:'#6a8aaa', confirmada:'#00c896', dte_emitido:'#88dd44',
+    en_transito:'#ff8c00', en_frigorifico:'#c084fc', romaneo_ok:'#0088ff', finalizada:'#4ade80'
+  }[e] || '#6a8aaa'));
+  renderChart('chart-estados', 'doughnut', estadoLabels.map(e => e.replace('_',' ')), [Object.values(estadoCount)], [''], estadoColors, true);
+
+  // ── CHART: FACTURACIÓN MENSUAL ──
+  const porMes = {};
+  ops.forEach(op => {
+    if (!op.f_carga) return;
+    const mes = op.f_carga.slice(0,7);
+    const cos = cosMap[op.id];
+    if (!porMes[mes]) porMes[mes] = { venta: 0, neto: 0 };
+    porMes[mes].venta += cos?.total_venta    ? Number(cos.total_venta)    : 0;
+    porMes[mes].neto  += cos?.resultado_neto ? Number(cos.resultado_neto) : 0;
+  });
+  const meses = Object.keys(porMes).sort();
+  renderChart('chart-facturacion', 'bar',
+    meses.map(m => { const [y,mo] = m.split('-'); return ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][parseInt(mo)-1] + ' ' + y.slice(2); }),
+    [meses.map(m => porMes[m].venta), meses.map(m => porMes[m].neto)],
+    ['Facturación', 'Neto'],
+    ['#facc15','#4ade80'], false
+  );
+
+  // ── CHART: PRECIO KG CARNE ──
+  const precioMes = {};
+  ops.forEach(op => {
+    if (!op.f_carga) return;
+    const mes = op.f_carga.slice(0,7);
+    const cos = cosMap[op.id];
+    const rom = romMap[op.id];
+    if (cos?.total_venta && rom?.kg_carne_total) {
+      if (!precioMes[mes]) precioMes[mes] = { sum: 0, cnt: 0 };
+      precioMes[mes].sum += Number(cos.total_venta) / Number(rom.kg_carne_total);
+      precioMes[mes].cnt++;
+    }
+  });
+  const mesesP = Object.keys(precioMes).sort();
+  renderChart('chart-precio', 'line',
+    mesesP.map(m => { const [y,mo] = m.split('-'); return ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][parseInt(mo)-1] + ' ' + y.slice(2); }),
+    [mesesP.map(m => Math.round(precioMes[m].sum / precioMes[m].cnt))],
+    ['$ x Kg Carne'], ['#facc15'], false
+  );
+
+  // ── CHART: RINDE POR FRIGORÍFICO ──
+  const rindeXFrigo = {};
+  ops.forEach(op => {
+    const key = op.planta || op.comprador || 'Sin datos';
+    const seg = segMap[op.id]; const rom = romMap[op.id];
+    if (seg?.peso_neto && rom?.kg_carne_total) {
+      if (!rindeXFrigo[key]) rindeXFrigo[key] = { sumR:0, cnt:0 };
+      rindeXFrigo[key].sumR += Number(rom.kg_carne_total)/Number(seg.peso_neto)*100;
+      rindeXFrigo[key].cnt++;
+    }
+  });
+  const frigoKeys = Object.keys(rindeXFrigo).sort((a,b) => rindeXFrigo[b].sumR/rindeXFrigo[b].cnt - rindeXFrigo[a].sumR/rindeXFrigo[a].cnt).slice(0,8);
+  renderChart('chart-rinde-frigo', 'bar',
+    frigoKeys.map(k => k.length>15 ? k.slice(0,15)+'…' : k),
+    [frigoKeys.map(k => (rindeXFrigo[k].sumR/rindeXFrigo[k].cnt).toFixed(1))],
+    ['Rinde %'],
+    [frigoKeys.map(k => { const r = rindeXFrigo[k].sumR/rindeXFrigo[k].cnt; return r>=55?'#4ade80':r>=48?'#facc15':'#f87171'; })],
+    false, true
+  );
+
+  // ── CHART: CATEGORÍAS ──
+  const catCount = {};
+  ops.forEach(op => {
+    const cat = segMap[op.id]?.cat_real || op.cat || 'N/D';
+    catCount[cat] = (catCount[cat]||0) + Number(segMap[op.id]?.cant_real || op.cant || 0);
+  });
+  const catKeys = Object.keys(catCount).sort((a,b) => catCount[b]-catCount[a]);
+  const catColors = ['#4ade80','#facc15','#0088ff','#ff8c00','#c084fc','#f87171','#00c896','#88dd44'];
+  renderChart('chart-categorias', 'doughnut',
+    catKeys, [catKeys.map(k => catCount[k])], [''], catColors.slice(0, catKeys.length), true
+  );
+
+  // ── RANKING FRIGORÍFICOS ──
+  const volFrigo = {};
+  ops.forEach(op => {
+    const key = op.planta || op.comprador || '—';
+    const seg = segMap[op.id];
+    volFrigo[key] = (volFrigo[key]||0) + Number(seg?.cant_real || op.cant || 0);
+  });
+  const topFrigo = Object.entries(volFrigo).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  const maxFrigo = topFrigo[0]?.[1] || 1;
+  document.getElementById('ger-ranking-frigo').innerHTML = topFrigo.map(([nombre, cab], i) => `
+    <div class="ger-ranking-row">
+      <div class="ger-ranking-num">${i+1}</div>
+      <div style="flex:1">
+        <div class="ger-ranking-nombre">${nombre}</div>
+        <div class="ger-bar"><div class="ger-bar-fill" style="width:${(cab/maxFrigo*100).toFixed(0)}%;background:${i===0?'#facc15':'var(--accent)'}"></div></div>
+      </div>
+      <div class="ger-ranking-val">${cab.toLocaleString('es-AR')} cab</div>
+    </div>`).join('') || '<div style="color:var(--text2);font-size:12px;padding:12px">Sin datos</div>';
+
+  // ── RANKING VENDEDORES ──
+  const volVend = {};
+  ops.forEach(op => {
+    const seg = segMap[op.id];
+    volVend[op.titular] = (volVend[op.titular]||0) + Number(seg?.cant_real || op.cant || 0);
+  });
+  const topVend = Object.entries(volVend).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  const maxVend = topVend[0]?.[1] || 1;
+  document.getElementById('ger-ranking-vendedor').innerHTML = topVend.map(([nombre, cab], i) => `
+    <div class="ger-ranking-row">
+      <div class="ger-ranking-num">${i+1}</div>
+      <div style="flex:1">
+        <div class="ger-ranking-nombre">${nombre}</div>
+        <div class="ger-bar"><div class="ger-bar-fill" style="width:${(cab/maxVend*100).toFixed(0)}%;background:${i===0?'#4ade80':'var(--accent)'}"></div></div>
+      </div>
+      <div class="ger-ranking-val">${cab.toLocaleString('es-AR')} cab</div>
+    </div>`).join('') || '<div style="color:var(--text2);font-size:12px;padding:12px">Sin datos</div>';
+
+  // ── CICLO OPERACIONAL ──
+  let cicloSum=0, cicloCnt=0;
+  ops.forEach(op => {
+    const seg = segMap[op.id];
+    if (op.f_carga && seg?.f_costeo) {
+      const dias = Math.round((new Date(seg.f_costeo) - new Date(op.f_carga)) / 86400000);
+      if (dias > 0 && dias < 365) { cicloSum += dias; cicloCnt++; }
+    }
+  });
+  const cicloPromedio = cicloCnt ? Math.round(cicloSum/cicloCnt) : null;
+  document.getElementById('ger-ciclo').innerHTML = cicloPromedio ? `
+    <div style="text-align:center;padding:20px">
+      <div style="font-size:56px;font-weight:800;font-family:var(--mono);color:var(--accent)">${cicloPromedio}</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--text2);letter-spacing:2px;margin-top:4px">DÍAS PROMEDIO</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:8px">desde carga hasta costeo finalizado</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px">basado en ${cicloCnt} operaciones finalizadas</div>
+    </div>` : '<div style="color:var(--text2);font-size:12px;padding:20px;text-align:center">Sin operaciones finalizadas en el período</div>';
+
+  // ── DIF CONSIGNATARIA ──
+  const difPositivo = ops.reduce((s,op) => { const d = cosMap[op.id]?.dif_consignataria; return d>0 ? s+Number(d) : s; }, 0);
+  const difNegativo = ops.reduce((s,op) => { const d = cosMap[op.id]?.dif_consignataria; return d<0 ? s+Number(d) : s; }, 0);
+  const opsDif = ops.filter(op => cosMap[op.id]?.dif_consignataria != null).length;
+  document.getElementById('ger-dif').innerHTML = `
+    <div style="padding:16px">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);margin-bottom:8px">RESULTADO NETO DIF</div>
+        <div style="font-size:28px;font-weight:800;font-family:var(--mono);color:${totDif>=0?'#4ade80':'var(--danger)'}">${totDif>=0?'+':''}${fmtM(totDif)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-family:var(--mono);font-size:9px;color:#4ade80;letter-spacing:1px;margin-bottom:6px">A FAVOR</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:#4ade80">+${fmtM(difPositivo)}</div>
+        </div>
+        <div style="background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);border-radius:8px;padding:12px;text-align:center">
+          <div style="font-family:var(--mono);font-size:9px;color:var(--danger);letter-spacing:1px;margin-bottom:6px">EN CONTRA</div>
+          <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--danger)">${fmtM(difNegativo)}</div>
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text2);text-align:center;margin-top:12px">${opsDif} operaciones con DIF registrada</div>
+    </div>`;
+}
+
+function renderChart(id, type, labels, datasets, dsLabels, colors, isPie=false, multiColor=false) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (gerCharts[id]) { gerCharts[id].destroy(); }
+
+  const chartColors = isPie
+    ? colors
+    : datasets.map((_, i) => Array.isArray(colors[i]) ? colors[i] : colors[i] || colors[0]);
+
+  gerCharts[id] = new Chart(ctx, {
+    type,
+    data: {
+      labels,
+      datasets: datasets.map((data, i) => ({
+        label: dsLabels[i] || '',
+        data,
+        backgroundColor: multiColor ? colors[i] : isPie ? colors : (type==='line' ? 'transparent' : chartColors[i]+'33'),
+        borderColor: multiColor ? colors[i] : isPie ? '#0a0e14' : (Array.isArray(chartColors[i]) ? chartColors[i] : chartColors[i]),
+        borderWidth: isPie ? 2 : 2,
+        pointBackgroundColor: chartColors[i],
+        tension: 0.4,
+        fill: type === 'line',
+      }))
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          display: isPie || datasets.length > 1,
+          labels: { color: '#6a8aaa', font: { family: 'IBM Plex Mono', size: 10 }, boxWidth: 12 }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const v = ctx.parsed.y ?? ctx.parsed;
+              if (typeof v === 'number' && v > 1000) return ' $' + v.toLocaleString('es-AR');
+              return ' ' + v;
+            }
+          }
+        }
+      },
+      scales: isPie ? {} : {
+        x: { ticks: { color: '#6a8aaa', font: { family: 'IBM Plex Mono', size: 9 } }, grid: { color: '#1e2d42' } },
+        y: { ticks: { color: '#6a8aaa', font: { family: 'IBM Plex Mono', size: 9 }, callback: v => v > 1000 ? '$'+Number(v).toLocaleString('es-AR') : v }, grid: { color: '#1e2d42' } }
+      }
+    }
+  });
+}
   // Gastos fijos
   const { data: p } = await sb.from('parametros_costos').select('*').eq('id', 1).single();
   if (p) {
