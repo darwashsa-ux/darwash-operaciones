@@ -1623,8 +1623,22 @@
 // ════════════════════════════════════════════════════
 const SUPABASE_URL  = 'https://qkrrumlbvspbxjoxvxho.supabase.co';
 const SUPABASE_KEY  = 'sb_publishable_ZKjsxf9lkh4tgkhAayDvbA_6DOE7E6d';
-const TELEGRAM_TOKEN = '8787061720:AAHmrS1EQhj5qqePs5juIDGIzbIX2oxaYAQ';
-const ADMINS_TG     = ['1172465951', '8746958954'];
+let TELEGRAM_TOKEN = null;
+let ADMINS_TG      = [];
+
+async function cargarConfig() {
+  try {
+    const { data, error } = await sb.from('config').select('clave, valor');
+    if (error || !data) { console.warn('Config no disponible:', error?.message); return; }
+    data.forEach(row => {
+      if (row.clave === 'telegram_token')  TELEGRAM_TOKEN = row.valor;
+      if (row.clave === 'telegram_admins') ADMINS_TG = row.valor.split(',').map(s => s.trim());
+    });
+    console.log('✅ Config cargada desde Supabase');
+  } catch(e) {
+    console.warn('Error cargando config:', e);
+  }
+}
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -1869,6 +1883,8 @@ async function iniciarSesion() {
   sessionStorage.setItem('darwash_user', JSON.stringify(usuario));
   // Registrar último acceso
   await sb.from('usuarios').update({ last_login: new Date().toISOString() }).eq('email', email);
+  // Cargar config (tokens, etc.) desde Supabase
+  await cargarConfig();
   montarApp();
 }
 
@@ -3858,6 +3874,7 @@ window.onload = async () => {
     const saved = sessionStorage.getItem('darwash_user');
     if (saved) {
       usuario = JSON.parse(saved);
+      await cargarConfig();
       montarApp();
     } else {
       const { data: perfil } = await sb.from('usuarios')
@@ -3865,6 +3882,7 @@ window.onload = async () => {
       if (perfil) {
         usuario = { rol: perfil.rol, nombre: perfil.nombre, email: perfil.email };
         sessionStorage.setItem('darwash_user', JSON.stringify(usuario));
+        await cargarConfig();
         montarApp();
       }
     }
