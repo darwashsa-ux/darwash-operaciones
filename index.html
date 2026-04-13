@@ -2210,7 +2210,18 @@ async function guardarOperacion() {
       btn.textContent = '✓ REGISTRAR OPERACIÓN';
       return;
     }
-    await sb.from('seguimiento').insert([{ operacion_id: data[0].id }]);
+    // Crear seguimiento — con manejo de error explícito
+    const { error: segError } = await sb.from('seguimiento').insert([{ operacion_id: data[0].id }]);
+    if (segError) {
+      // Si ya existe (conflict) lo ignoramos, sino reportamos
+      if (!segError.message.includes('duplicate') && !segError.code === '23505') {
+        console.error('Error creando seguimiento:', segError.message);
+        mostrarAlerta('alert-carga', 'error', `❌ Op creada pero error en seguimiento: ${segError.message}`);
+        btn.disabled = false;
+        btn.textContent = '✓ REGISTRAR OPERACIÓN';
+        return;
+      }
+    }
   }
 
   // Telegram — mensaje único resumido
