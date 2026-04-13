@@ -462,6 +462,46 @@
   .btn-periodo:hover { border-color: var(--accent); color: var(--accent); }
   .btn-periodo.active-periodo { background: var(--accent); border-color: var(--accent); color: #000; font-weight: 700; }
 
+  /* Multi-select gerencial */
+  .ger-filter-group { position: relative; }
+  .ger-filter-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--text2); text-transform: uppercase; margin-bottom: 5px; }
+  .ger-filter-btn {
+    font-family: var(--mono); font-size: 11px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 12px; color: var(--white);
+    cursor: pointer; min-width: 130px; text-align: left;
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    transition: border-color .2s;
+  }
+  .ger-filter-btn:hover, .ger-filter-btn.open { border-color: var(--accent); }
+  .ger-filter-btn.has-selection { border-color: var(--accent); color: var(--accent); }
+  .ger-dropdown {
+    position: absolute; top: calc(100% + 4px); left: 0; z-index: 200;
+    background: var(--bg2); border: 1px solid var(--accent);
+    border-radius: 8px; min-width: 200px; max-height: 260px;
+    overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.5); display: none;
+  }
+  .ger-dropdown.open { display: block; }
+  .ger-dropdown-search {
+    padding: 8px 10px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--bg2);
+  }
+  .ger-dropdown-search input {
+    width: 100%; background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 4px; padding: 5px 8px; color: var(--white);
+    font-family: var(--mono); font-size: 11px; outline: none;
+  }
+  .ger-dropdown-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px; cursor: pointer; font-size: 12px;
+    transition: background .15s;
+  }
+  .ger-dropdown-item:hover { background: var(--bg3); }
+  .ger-dropdown-item input[type=checkbox] { accent-color: var(--accent); cursor: pointer; }
+  .ger-dropdown-item.selected { color: var(--accent); }
+  .ger-filter-clear { font-family: var(--mono); font-size: 9px; color: var(--danger); cursor: pointer; margin-top: 3px; display: none; }
+  .ger-filter-clear.visible { display: block; }
+
   .ger-kpi {
     background: var(--bg2);
     border: 1px solid var(--border);
@@ -1165,22 +1205,96 @@
     </div>
 
     <!-- ── PAGE: GERENCIAL ── -->
-    <div class="page" id="page-gerencial">
+    <div class="page" id="page-gerencial" onclick="cerrarDropdowns(event)">
 
-      <!-- SELECTOR DE PERÍODO -->
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
-        <div style="font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--text2)">PERÍODO</div>
-        <div style="display:flex;gap:6px">
-          <button onclick="setPeriodo('mes')" id="btn-periodo-mes" class="btn-periodo active-periodo">Este mes</button>
-          <button onclick="setPeriodo('trimestre')" id="btn-periodo-trimestre" class="btn-periodo">Trimestre</button>
-          <button onclick="setPeriodo('anio')" id="btn-periodo-anio" class="btn-periodo">Este año</button>
-          <button onclick="setPeriodo('todo')" id="btn-periodo-todo" class="btn-periodo">Todo</button>
+      <!-- FILTROS GERENCIAL -->
+      <div class="card" style="margin-bottom:20px;padding:16px 20px">
+
+        <!-- PERÍODO -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+          <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2)">PERÍODO</div>
+          <div style="display:flex;gap:6px">
+            <button onclick="setPeriodo('mes')" id="btn-periodo-mes" class="btn-periodo active-periodo">Este mes</button>
+            <button onclick="setPeriodo('trimestre')" id="btn-periodo-trimestre" class="btn-periodo">Trimestre</button>
+            <button onclick="setPeriodo('anio')" id="btn-periodo-anio" class="btn-periodo">Este año</button>
+            <button onclick="setPeriodo('todo')" id="btn-periodo-todo" class="btn-periodo">Todo</button>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
+            <input type="date" id="ger-desde" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--white);font-family:var(--mono);font-size:11px">
+            <span style="color:var(--text2);font-size:12px">→</span>
+            <input type="date" id="ger-hasta" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--white);font-family:var(--mono);font-size:11px">
+          </div>
         </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-left:auto">
-          <input type="date" id="ger-desde" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--white);font-family:var(--mono);font-size:11px">
-          <span style="color:var(--text2);font-size:12px">→</span>
-          <input type="date" id="ger-hasta" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--white);font-family:var(--mono);font-size:11px">
-          <button onclick="cargarGerencial()" class="btn small">↻</button>
+
+        <!-- FILTROS MULTI-SELECT -->
+        <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+
+          <!-- Vendedor -->
+          <div class="ger-filter-group" id="fg-vendedor">
+            <div class="ger-filter-label">Vendedor</div>
+            <button class="ger-filter-btn" id="fb-vendedor" onclick="toggleDropdown('vendedor',event)">
+              <span id="fl-vendedor">Todos</span> <span>▾</span>
+            </button>
+            <div class="ger-filter-clear" id="fc-vendedor" onclick="limpiarFiltroGer('vendedor')">✕ limpiar</div>
+            <div class="ger-dropdown" id="dd-vendedor">
+              <div class="ger-dropdown-search"><input type="text" placeholder="Buscar..." oninput="filtrarOpciones('vendedor',this.value)"></div>
+              <div id="opts-vendedor"></div>
+            </div>
+          </div>
+
+          <!-- Comprador -->
+          <div class="ger-filter-group" id="fg-comprador">
+            <div class="ger-filter-label">Comprador / Frigorífico</div>
+            <button class="ger-filter-btn" id="fb-comprador" onclick="toggleDropdown('comprador',event)">
+              <span id="fl-comprador">Todos</span> <span>▾</span>
+            </button>
+            <div class="ger-filter-clear" id="fc-comprador" onclick="limpiarFiltroGer('comprador')">✕ limpiar</div>
+            <div class="ger-dropdown" id="dd-comprador">
+              <div class="ger-dropdown-search"><input type="text" placeholder="Buscar..." oninput="filtrarOpciones('comprador',this.value)"></div>
+              <div id="opts-comprador"></div>
+            </div>
+          </div>
+
+          <!-- Categoría -->
+          <div class="ger-filter-group" id="fg-categoria">
+            <div class="ger-filter-label">Categoría</div>
+            <button class="ger-filter-btn" id="fb-categoria" onclick="toggleDropdown('categoria',event)">
+              <span id="fl-categoria">Todas</span> <span>▾</span>
+            </button>
+            <div class="ger-filter-clear" id="fc-categoria" onclick="limpiarFiltroGer('categoria')">✕ limpiar</div>
+            <div class="ger-dropdown" id="dd-categoria">
+              <div id="opts-categoria"></div>
+            </div>
+          </div>
+
+          <!-- Consignataria -->
+          <div class="ger-filter-group" id="fg-consig">
+            <div class="ger-filter-label">Consignataria</div>
+            <button class="ger-filter-btn" id="fb-consig" onclick="toggleDropdown('consig',event)">
+              <span id="fl-consig">Todas</span> <span>▾</span>
+            </button>
+            <div class="ger-filter-clear" id="fc-consig" onclick="limpiarFiltroGer('consig')">✕ limpiar</div>
+            <div class="ger-dropdown" id="dd-consig">
+              <div id="opts-consig"></div>
+            </div>
+          </div>
+
+          <!-- Estado -->
+          <div class="ger-filter-group" id="fg-estado">
+            <div class="ger-filter-label">Estado</div>
+            <button class="ger-filter-btn" id="fb-estado" onclick="toggleDropdown('estado',event)">
+              <span id="fl-estado">Todos</span> <span>▾</span>
+            </button>
+            <div class="ger-filter-clear" id="fc-estado" onclick="limpiarFiltroGer('estado')">✕ limpiar</div>
+            <div class="ger-dropdown" id="dd-estado">
+              <div id="opts-estado"></div>
+            </div>
+          </div>
+
+          <div style="margin-left:auto;display:flex;gap:8px;align-items:flex-end;padding-bottom:2px">
+            <button onclick="limpiarTodosFiltrosGer()" class="btn small secondary">✕ Limpiar todo</button>
+            <button onclick="cargarGerencial()" class="btn small">↻ ACTUALIZAR</button>
+          </div>
         </div>
       </div>
 
@@ -3858,6 +3972,119 @@ function cerrarConsolidado() {
 // ════════════════════════════════════════════════════
 let gerCharts = {};
 
+// ════════════════════════════════════════════════════
+//  FILTROS MULTI-SELECT GERENCIAL
+// ════════════════════════════════════════════════════
+const gerFiltros = { vendedor: new Set(), comprador: new Set(), categoria: new Set(), consig: new Set(), estado: new Set() };
+let gerOpsCache = []; // cache de ops para poblar dropdowns
+
+function toggleDropdown(key, e) {
+  e.stopPropagation();
+  const dd = document.getElementById('dd-' + key);
+  const isOpen = dd.classList.contains('open');
+  cerrarDropdowns();
+  if (!isOpen) {
+    dd.classList.add('open');
+    document.getElementById('fb-' + key).classList.add('open');
+  }
+}
+
+function cerrarDropdowns(e) {
+  document.querySelectorAll('.ger-dropdown').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.ger-filter-btn').forEach(b => b.classList.remove('open'));
+}
+
+function poblarDropdowns(ops) {
+  gerOpsCache = ops;
+  const vendedores  = [...new Set(ops.map(o => o.titular).filter(Boolean))].sort();
+  const compradores = [...new Set(ops.map(o => o.comprador).filter(Boolean))].sort();
+  const categorias  = [...new Set(ops.map(o => o.cat).filter(Boolean))].sort();
+  const consigs     = [...new Set(ops.map(o => o.por).filter(Boolean))].sort();
+  const estados     = [...new Set(ops.map(o => o.estado).filter(Boolean))].sort();
+
+  renderOpciones('vendedor',  vendedores);
+  renderOpciones('comprador', compradores);
+  renderOpciones('categoria', categorias);
+  renderOpciones('consig',    consigs);
+  renderOpciones('estado',    estados);
+}
+
+function renderOpciones(key, opciones) {
+  const cont = document.getElementById('opts-' + key);
+  if (!cont) return;
+  cont.innerHTML = opciones.map(op => `
+    <div class="ger-dropdown-item ${gerFiltros[key].has(op) ? 'selected' : ''}" onclick="toggleOpcion('${key}','${op.replace(/'/g,"\\'")}',this)">
+      <input type="checkbox" ${gerFiltros[key].has(op) ? 'checked' : ''} onclick="event.stopPropagation()">
+      <span>${op}</span>
+    </div>`).join('');
+}
+
+function filtrarOpciones(key, q) {
+  const cont = document.getElementById('opts-' + key);
+  if (!cont) return;
+  cont.querySelectorAll('.ger-dropdown-item').forEach(item => {
+    const txt = item.querySelector('span').textContent.toLowerCase();
+    item.style.display = txt.includes(q.toLowerCase()) ? '' : 'none';
+  });
+}
+
+function toggleOpcion(key, val, el) {
+  if (gerFiltros[key].has(val)) {
+    gerFiltros[key].delete(val);
+    el.classList.remove('selected');
+    el.querySelector('input').checked = false;
+  } else {
+    gerFiltros[key].add(val);
+    el.classList.add('selected');
+    el.querySelector('input').checked = true;
+  }
+  actualizarLabelFiltro(key);
+}
+
+function actualizarLabelFiltro(key) {
+  const sel = gerFiltros[key];
+  const lbl = document.getElementById('fl-' + key);
+  const btn = document.getElementById('fb-' + key);
+  const clr = document.getElementById('fc-' + key);
+  if (sel.size === 0) {
+    lbl.textContent = key === 'categoria' ? 'Todas' : key === 'consig' ? 'Todas' : key === 'estado' ? 'Todos' : 'Todos';
+    btn.classList.remove('has-selection');
+    clr.classList.remove('visible');
+  } else {
+    lbl.textContent = sel.size === 1 ? [...sel][0] : sel.size + ' selec.';
+    btn.classList.add('has-selection');
+    clr.classList.add('visible');
+  }
+}
+
+function limpiarFiltroGer(key) {
+  gerFiltros[key].clear();
+  actualizarLabelFiltro(key);
+  renderOpciones(key, [...new Set(gerOpsCache.map(o => {
+    if (key==='vendedor') return o.titular;
+    if (key==='comprador') return o.comprador;
+    if (key==='categoria') return o.cat;
+    if (key==='consig') return o.por;
+    if (key==='estado') return o.estado;
+  }).filter(Boolean))].sort());
+}
+
+function limpiarTodosFiltrosGer() {
+  Object.keys(gerFiltros).forEach(k => { gerFiltros[k].clear(); actualizarLabelFiltro(k); });
+  poblarDropdowns(gerOpsCache);
+}
+
+function aplicarFiltrosGer(ops) {
+  return ops.filter(op => {
+    if (gerFiltros.vendedor.size  && !gerFiltros.vendedor.has(op.titular))   return false;
+    if (gerFiltros.comprador.size && !gerFiltros.comprador.has(op.comprador)) return false;
+    if (gerFiltros.categoria.size && !gerFiltros.categoria.has(op.cat))      return false;
+    if (gerFiltros.consig.size    && !gerFiltros.consig.has(op.por))         return false;
+    if (gerFiltros.estado.size    && !gerFiltros.estado.has(op.estado))      return false;
+    return true;
+  });
+}
+
 function setPeriodo(p) {
   document.querySelectorAll('.btn-periodo').forEach(b => b.classList.remove('active-periodo'));
   document.getElementById('btn-periodo-' + p)?.classList.add('active-periodo');
@@ -3882,13 +4109,24 @@ async function cargarGerencial() {
   const hasta = document.getElementById('ger-hasta')?.value || new Date().toISOString().split('T')[0];
 
   // Traer operaciones del período
-  const { data: ops } = await sb.from('operaciones')
-    .select('id, numero, f_carga, titular, comprador, planta, cant, cat, estado')
+  const { data: opsRaw } = await sb.from('operaciones')
+    .select('id, numero, f_carga, titular, por, comprador, planta, cant, cat, estado')
     .gte('f_carga', desde).lte('f_carga', hasta)
     .order('f_carga');
 
-  if (!ops?.length) {
+  if (!opsRaw?.length) {
     document.getElementById('ger-kpis').innerHTML = '<div class="alert info">Sin operaciones en el período seleccionado</div>';
+    return;
+  }
+
+  // Poblar dropdowns con todas las ops del período (antes de filtrar)
+  poblarDropdowns(opsRaw);
+
+  // Aplicar filtros multi-select
+  const ops = aplicarFiltrosGer(opsRaw);
+
+  if (!ops.length) {
+    document.getElementById('ger-kpis').innerHTML = '<div class="alert info">Sin operaciones para los filtros seleccionados</div>';
     return;
   }
 
