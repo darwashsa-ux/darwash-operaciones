@@ -112,10 +112,65 @@
     --danger:    #d43050;
     --white:     #0f2a1a;
     --radius:    8px;
-    --mono:      'IBM Plex Mono', monospace;
-    --sans:      'IBM Plex Sans', sans-serif;
     --shadow:    0 2px 8px rgba(0,80,40,.1);
   }
+
+  /* ── TEMA AZUL CORPORATIVO ───── */
+  :root.corporate {
+    --bg:        #0d1b2e;
+    --bg2:       #132540;
+    --bg3:       #1a3055;
+    --border:    #1e3d6a;
+    --text:      #c8d8f0;
+    --text2:     #6a90c0;
+    --accent:    #3b9eff;
+    --accent2:   #00d4aa;
+    --warn:      #ffaa00;
+    --danger:    #ff4060;
+    --white:     #e8f2ff;
+    --radius:    8px;
+    --shadow:    0 2px 8px rgba(0,0,0,.5);
+  }
+
+  /* ── TEMA ARENA (cálido) ──────── */
+  :root.arena {
+    --bg:        #faf7f2;
+    --bg2:       #ffffff;
+    --bg3:       #f0ebe0;
+    --border:    #d8c8a8;
+    --text:      #2a1f0a;
+    --text2:     #7a6040;
+    --accent:    #c07000;
+    --accent2:   #0070c0;
+    --warn:      #d06000;
+    --danger:    #c02020;
+    --white:     #1a1000;
+    --radius:    8px;
+    --shadow:    0 2px 8px rgba(80,40,0,.12);
+  }
+
+  /* ── TEMA JEFE (máximo contraste) */
+  :root.jefe {
+    --bg:        #ffffff;
+    --bg2:       #f5f5f5;
+    --bg3:       #e8e8e8;
+    --border:    #aaaaaa;
+    --text:      #000000;
+    --text2:     #333333;
+    --accent:    #006600;
+    --accent2:   #0044cc;
+    --warn:      #cc5500;
+    --danger:    #cc0000;
+    --white:     #000000;
+    --radius:    8px;
+    --shadow:    0 2px 6px rgba(0,0,0,.15);
+    font-size:   16px;
+  }
+  :root.jefe body { font-size: 15px; }
+  :root.jefe .ops-table td { font-size: 13px; padding: 11px 8px; }
+  :root.jefe .ops-table th { font-size: 10px; }
+  :root.jefe .topbar { border-bottom: 2px solid #000; }
+  :root.jefe .tab { font-size: 11px; }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -128,20 +183,8 @@
     transition: background .25s, color .25s;
   }
 
-  /* Ajustes tema claro */
-  :root.light .login-box,
-  :root.light .topbar,
-  :root.light .tabs,
-  :root.light .card,
-  :root.light .stat-card {
-    box-shadow: var(--shadow);
-  }
   :root.light .ops-table tr:hover td { background: #d8ede2; }
-  :root.light .field input,
-  :root.light .field select,
-  :root.light .field textarea {
-    color: var(--white);
-  }
+  :root.light .field input, :root.light .field select, :root.light .field textarea { color: var(--white); }
   :root.light .btn { box-shadow: 0 2px 4px rgba(0,120,70,.2); }
   :root.light .estado-pendiente      { background:#e8e8f0; color:#5a5a7a; border-color:#c0c0d8; }
   :root.light .estado-confirmada     { background:#d0f0e0; color:#006040; border-color:#90d8b8; }
@@ -154,6 +197,28 @@
   :root.light .alert.error   { background:#fcd8dc; border-color:#f09098; color:#900020; }
   :root.light .alert.info    { background:#d0e8fc; border-color:#80b8f0; color:#003870; }
   :root.light #login-screen  { background: radial-gradient(ellipse at 30% 50%, #c8ede0 0%, #f2f6f3 70%); }
+  :root.light .login-box, :root.light .topbar, :root.light .tabs, :root.light .card, :root.light .stat-card { box-shadow: var(--shadow); }
+
+  /* Ajustes arena y jefe — campos */
+  :root.arena .field input, :root.arena .field select, :root.arena .field textarea { color: var(--white); }
+  :root.arena .login-box, :root.arena .topbar, :root.arena .tabs, :root.arena .card, :root.arena .stat-card { box-shadow: var(--shadow); }
+  :root.arena .estado-pendiente      { background:#f0e8d0; color:#5a3a00; border-color:#c8a060; }
+  :root.arena .estado-confirmada     { background:#d8f0d8; color:#005020; border-color:#80c880; }
+  :root.arena .estado-en_transito    { background:#ffe8c0; color:#804000; border-color:#d8a060; }
+  :root.arena .estado-en_frigorifico { background:#e8d8f0; color:#502080; border-color:#b890d0; }
+  :root.arena .estado-finalizada     { background:#d0f0d8; color:#005020; border-color:#70c880; }
+  :root.arena #login-screen { background: radial-gradient(ellipse at 30% 50%, #e8d8b0 0%, #faf7f2 70%); }
+
+  :root.jefe .field input, :root.jefe .field select, :root.jefe .field textarea { color: #000; background: #fff; border: 2px solid #888; }
+  :root.jefe .login-box, :root.jefe .topbar, :root.jefe .tabs, :root.jefe .card, :root.jefe .stat-card { box-shadow: 0 2px 8px rgba(0,0,0,.2); border: 1px solid #aaa; }
+  :root.jefe .estado-pendiente      { background:#e8e8ff; color:#000066; border-color:#8888cc; }
+  :root.jefe .estado-confirmada     { background:#d0ffd0; color:#004400; border-color:#44aa44; }
+  :root.jefe .estado-en_transito    { background:#fff0d0; color:#664400; border-color:#cc8800; }
+  :root.jefe .estado-en_frigorifico { background:#f0d0ff; color:#440066; border-color:#9944aa; }
+  :root.jefe .estado-finalizada     { background:#d0ffd8; color:#004400; border-color:#44aa66; }
+  :root.jefe #login-screen { background: #f0f0f0; }
+  :root.jefe .ops-table tbody tr:nth-child(even) td { background: #f0f0f0; }
+  :root.jefe .ops-table tbody tr:hover td { background: #ddeedd !important; }
 
   /* ── LOGIN ────────────────────────────────────────── */
   #login-screen {
@@ -790,9 +855,14 @@
       <button onclick="abrirCambiarPassword()"
         style="font-family:var(--mono);font-size:10px;color:var(--text2);background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;cursor:pointer;letter-spacing:1px"
         title="Cambiar contraseña">🔑</button>
-      <button id="btn-tema" onclick="toggleTema()"
-        style="font-family:var(--mono);font-size:10px;color:var(--text2);background:none;border:1px solid var(--border);border-radius:4px;padding:3px 8px;cursor:pointer;letter-spacing:1px;transition:all .2s"
-        title="Cambiar tema">☀️</button>
+      <select id="sel-tema" onchange="cambiarTema(this.value)"
+        style="font-family:var(--mono);font-size:10px;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:4px;padding:3px 6px;cursor:pointer;letter-spacing:1px">
+        <option value="dark">🌙 Dark</option>
+        <option value="corporate">🔷 Corporativo</option>
+        <option value="light">☀️ Claro</option>
+        <option value="arena">🏜️ Arena</option>
+        <option value="jefe">👔 El Jefe</option>
+      </select>
       <button class="logout-btn" onclick="cerrarSesion()">SALIR</button>
     </div>
   </div>
@@ -3590,11 +3660,19 @@ document.addEventListener('click', (e) => {
 // ════════════════════════════════════════════════════
 //  TEMA CLARO / OSCURO
 // ════════════════════════════════════════════════════
-function toggleTema() {
-  const isLight = document.documentElement.classList.toggle('light');
-  localStorage.setItem('darwash_tema', isLight ? 'light' : 'dark');
-  const btn = document.getElementById('btn-tema');
-  if (btn) btn.textContent = isLight ? '🌙' : '☀️';
+const TEMAS = ['dark','corporate','light','arena','jefe'];
+
+function cambiarTema(tema) {
+  TEMAS.forEach(t => document.documentElement.classList.remove(t));
+  if (tema !== 'dark') document.documentElement.classList.add(tema);
+  localStorage.setItem('darwash_tema', tema);
+  const sel = document.getElementById('sel-tema');
+  if (sel) sel.value = tema;
+}
+
+function aplicarTemaGuardado() {
+  const tema = localStorage.getItem('darwash_tema') || 'dark';
+  cambiarTema(tema);
 }
 
 
@@ -4151,12 +4229,8 @@ async function eliminarOperacion() {
 }
 
 function aplicarTemaGuardado() {
-  const tema = localStorage.getItem('darwash_tema');
-  if (tema === 'light') {
-    document.documentElement.classList.add('light');
-    const btn = document.getElementById('btn-tema');
-    if (btn) btn.textContent = '🌙';
-  }
+  const tema = localStorage.getItem('darwash_tema') || 'dark';
+  cambiarTema(tema);
 }
 
 window.onload = async () => {
