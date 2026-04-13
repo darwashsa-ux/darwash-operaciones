@@ -142,11 +142,13 @@
     color: var(--white);
   }
   :root.light .btn { box-shadow: 0 2px 4px rgba(0,120,70,.2); }
-  :root.light .estado-pendiente   { background:#e8e8f0; color:#5a5a7a; border-color:#c0c0d8; }
-  :root.light .estado-confirmada  { background:#d0f0e0; color:#006040; border-color:#90d8b8; }
-  :root.light .estado-dte_emitido { background:#d8f0c0; color:#3a6010; border-color:#90c860; }
-  :root.light .estado-en_transito { background:#fde8c8; color:#805000; border-color:#d8a860; }
-  :root.light .estado-finalizada  { background:#d8d8f8; color:#303080; border-color:#9090d8; }
+  :root.light .estado-pendiente      { background:#e8e8f0; color:#5a5a7a; border-color:#c0c0d8; }
+  :root.light .estado-confirmada     { background:#d0f0e0; color:#006040; border-color:#90d8b8; }
+  :root.light .estado-dte_emitido    { background:#d8f0c0; color:#3a6010; border-color:#90c860; }
+  :root.light .estado-en_transito    { background:#fde8c8; color:#805000; border-color:#d8a860; }
+  :root.light .estado-en_frigorifico { background:#ede8f8; color:#5a2a90; border-color:#c0a0e0; }
+  :root.light .estado-romaneo_ok     { background:#d8eef8; color:#0a4a7a; border-color:#80c0e0; }
+  :root.light .estado-finalizada     { background:#d8f8e0; color:#0a5a2a; border-color:#80d8a0; }
   :root.light .alert.success { background:#c8f0dc; border-color:#60c890; color:#005030; }
   :root.light .alert.error   { background:#fcd8dc; border-color:#f09098; color:#900020; }
   :root.light .alert.info    { background:#d0e8fc; border-color:#80b8f0; color:#003870; }
@@ -421,11 +423,13 @@
     border-radius: 4px;
   }
 
-  .estado-pendiente   { background: #1a2232; color: var(--text2); border: 1px solid var(--border); }
-  .estado-confirmada  { background: #0d2a1a; color: var(--accent); border: 1px solid #1a4d30; }
-  .estado-dte_emitido { background: #1a2a0d; color: #88dd44; border: 1px solid #2a4a1a; }
-  .estado-en_transito { background: #2a1a0d; color: var(--warn); border: 1px solid #4a3010; }
-  .estado-finalizada  { background: #1a1a2a; color: var(--accent2); border: 1px solid #2a2a4a; }
+  .estado-pendiente      { background: #1a2232; color: var(--text2); border: 1px solid var(--border); }
+  .estado-confirmada     { background: #0d2a1a; color: var(--accent); border: 1px solid #1a4d30; }
+  .estado-dte_emitido    { background: #1a2a0d; color: #88dd44; border: 1px solid #2a4a1a; }
+  .estado-en_transito    { background: #2a1a0d; color: var(--warn); border: 1px solid #4a3010; }
+  .estado-en_frigorifico { background: #1a0d2a; color: #c084fc; border: 1px solid #3a1a5a; }
+  .estado-romaneo_ok     { background: #0d1a2a; color: var(--accent2); border: 1px solid #1a3a5a; }
+  .estado-finalizada     { background: #1a1a2a; color: #4ade80; border: 1px solid #2a4a2a; }
 
   /* ── STATS ────────────────────────────────────────── */
   .stats-grid {
@@ -925,6 +929,8 @@
               <option value="confirmada">Confirmada</option>
               <option value="dte_emitido">DTE Emitido</option>
               <option value="en_transito">En Tránsito</option>
+              <option value="en_frigorifico">En Frigorífico</option>
+              <option value="romaneo_ok">Romaneo OK</option>
               <option value="finalizada">Finalizada</option>
             </select>
           </div>
@@ -2700,13 +2706,15 @@ function renderModalArchivos(op, seg) {
 
 function renderModalHistorial(op, seg) {
   const pasos = [
-    { label: 'Carga registrada',    fecha: op.f_anotacion, detalle: op.operador || null },
-    { label: 'Confirmada (Pablo)',   fecha: seg && seg.f_pablo ? new Date(seg.f_pablo).toLocaleDateString('es-AR') : null, detalle: seg && seg.cant_real ? seg.cant_real + ' cab' + (seg.kg_pie ? ' · ' + Number(seg.kg_pie).toLocaleString('es-AR') + ' kg pie' : '') : null },
-    { label: 'DTE Emitido',         fecha: seg && seg.f_dte ? seg.f_dte : null, detalle: seg && seg.nro_dte ? seg.nro_dte : null },
-    { label: 'En tránsito',    fecha: seg && seg.f_salida ? seg.f_salida : null, detalle: seg && seg.transportista ? seg.transportista + (seg.chofer ? ' · ' + seg.chofer : '') : null },
-    { label: 'Arribo confirmado',   fecha: seg && seg.f_arribo ? new Date(seg.f_arribo).toLocaleDateString('es-AR') : null, detalle: seg && seg.obs_descarga ? seg.obs_descarga : null },
+    { label: 'Carga registrada',      fecha: op.f_anotacion, detalle: op.operador || null },
+    { label: 'Confirmada (Pablo)',     fecha: seg?.f_pablo ? new Date(seg.f_pablo).toLocaleDateString('es-AR') : null, detalle: seg?.cant_real ? seg.cant_real + ' cab' + (seg.kg_pie ? ' · ' + Number(seg.kg_pie).toLocaleString('es-AR') + ' kg pie' : '') : null },
+    { label: 'DTE Emitido',           fecha: seg?.f_dte || null, detalle: seg?.nro_dte || null },
+    { label: 'En Tránsito',           fecha: seg?.f_salida || null, detalle: seg?.transportista ? seg.transportista + (seg.chofer ? ' · ' + seg.chofer : '') : null },
+    { label: 'En Frigorífico',        fecha: seg?.f_arribo ? new Date(seg.f_arribo).toLocaleDateString('es-AR') : null, detalle: seg?.obs_descarga || null },
+    { label: 'Romaneo OK',            fecha: seg?.f_romaneo || null, detalle: seg?.romaneo ? '✓ Romaneo cargado' : null },
+    { label: 'Finalizada (Costeo OK)',fecha: seg?.f_costeo || null, detalle: seg?.costeo ? '✓ Costeo cargado' : null },
   ];
-  const orden = ['pendiente','confirmada','dte_emitido','en_transito','finalizada'];
+  const orden = ['pendiente','confirmada','dte_emitido','en_transito','en_frigorifico','romaneo_ok','finalizada'];
   const idxActual = orden.indexOf(op.estado);
   document.getElementById('modal-tab-historial').innerHTML =
     '<div class="timeline">' +
@@ -2818,8 +2826,8 @@ async function guardarRomaneo(opId, romId) {
   } else {
     ({ error } = await sb.from('romaneos').insert([payload]));
     if (!error) {
-      // actualizar seguimiento romaneo=true
       await sb.from('seguimiento').update({ romaneo: true, f_romaneo: new Date().toISOString().split('T')[0] }).eq('operacion_id', opId);
+      await sb.from('operaciones').update({ estado: 'romaneo_ok', updated_at: new Date() }).eq('id', opId);
     }
   }
   if (error) { alert('Error al guardar: ' + error.message); return; }
@@ -3542,6 +3550,7 @@ async function guardarCosteo(opId, kgCarne, kgBalanza, cabezas) {
   if (error) { alert('Error: ' + error.message); return; }
 
   await sb.from('seguimiento').update({ costeo: true, f_costeo: new Date().toISOString().split('T')[0] }).eq('operacion_id', opId);
+  await sb.from('operaciones').update({ estado: 'finalizada', updated_at: new Date() }).eq('id', opId);
   await abrirDetalleOperacion(opId);
   // ir a tab costeo
   const tabs = document.querySelectorAll('.modal-tab');

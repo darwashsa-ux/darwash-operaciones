@@ -287,19 +287,19 @@ async function confirmarArribo() {
       updated_at:        new Date()
     }).eq('arribo_token', getToken());
 
-    // 4. Actualizar estado operación → finalizada
+    // 4. Actualizar estado operación → en_frigorifico
     await sb.from('operaciones')
-      .update({ estado: 'finalizada', updated_at: new Date() })
+      .update({ estado: 'en_frigorifico', updated_at: new Date() })
       .eq('id', operacionData.id);
 
     // 5. Telegram
-    let msg  = `🏁 *ARRIBO CONFIRMADO — Op #${operacionData.numero}*\n`;
+    let msg  = `🏭 *ARRIBO CONFIRMADO — Op #${operacionData.numero}*\n`;
     msg     += `━━━━━━━━━━━━━━━━━━\n`;
     msg     += `🚛 ${seguimientoData.transportista || '?'} · ${seguimientoData.chofer || '?'}\n`;
     msg     += `🏭 ${operacionData.comprador} ${operacionData.planta ? '('+operacionData.planta+')' : ''}\n`;
     if (obs) msg += `📝 ${obs}\n`;
     msg     += `━━━━━━━━━━━━━━━━━━\n`;
-    msg     += `✅ Hacienda entregada. Op finalizada.`;
+    msg     += `⏳ Hacienda en frigorífico. Pendiente romaneo y costeo.`;
     for (const id of ADMINS_TG) {
       await fetch(`https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`, {
         method: 'POST',
