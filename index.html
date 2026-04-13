@@ -1387,6 +1387,85 @@
       </div>
     </div>
 
+    <!-- ── PAGE: FLETES ── -->
+    <div class="page" id="page-fletes">
+      <div id="alert-fletes"></div>
+
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:24px" id="fletes-kpis"></div>
+
+      <!-- VIAJES SIN FACTURA -->
+      <div class="card" style="margin-bottom:20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:0">📋 Viajes Sin Factura</div>
+          <button onclick="registrarFacturaFletes()" id="btn-registrar-flete"
+            style="font-family:var(--mono);font-size:10px;letter-spacing:1px;padding:7px 16px;background:transparent;border:1px solid var(--accent);border-radius:6px;color:var(--accent);cursor:pointer;display:none">
+            + REGISTRAR FACTURA
+          </button>
+        </div>
+        <div id="fletes-sin-factura"><div class="loading"><span class="spinner"></span>CARGANDO...</div></div>
+      </div>
+
+      <!-- FACTURAS REGISTRADAS -->
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <div class="card-title" style="margin-bottom:0">🧾 Facturas de Flete</div>
+          <div style="display:flex;gap:8px">
+            <select id="fletes-filtro-estado" onchange="cargarFletes()"
+              style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px 10px;color:var(--white);font-family:var(--mono);font-size:11px">
+              <option value="">Todos los estados</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="recibida">Recibida</option>
+              <option value="pagada">Pagada</option>
+            </select>
+          </div>
+        </div>
+        <div id="fletes-facturas"><div class="loading"><span class="spinner"></span>CARGANDO...</div></div>
+      </div>
+
+      <!-- MODAL REGISTRAR FACTURA -->
+      <div id="modal-flete" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.75);z-index:999;align-items:center;justify-content:center;overflow-y:auto">
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:32px;width:100%;max-width:600px;margin:20px;max-height:90vh;overflow-y:auto">
+          <div style="font-family:var(--mono);font-size:11px;letter-spacing:3px;color:var(--accent);margin-bottom:20px">🧾 REGISTRAR FACTURA DE FLETE</div>
+          <div id="modal-flete-viajes" style="margin-bottom:20px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+            <div class="field">
+              <label>Transportista</label>
+              <input type="text" id="flete-transp" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);width:100%;font-size:13px" readonly>
+            </div>
+            <div class="field">
+              <label>N° Factura</label>
+              <input type="text" id="flete-nrofactura" placeholder="ej: 0001-00012345" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);width:100%;font-size:13px">
+            </div>
+            <div class="field">
+              <label>Fecha Factura</label>
+              <input type="date" id="flete-fecha" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);width:100%;font-size:13px">
+            </div>
+            <div class="field">
+              <label>Monto Facturado $</label>
+              <input type="number" id="flete-monto" placeholder="0" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:#facc15;width:100%;font-size:13px;font-weight:600">
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:16px">
+            <label>Observaciones</label>
+            <input type="text" id="flete-obs" placeholder="Opcional" style="background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);width:100%;font-size:13px">
+          </div>
+          <!-- Preview monto calculado vs facturado -->
+          <div id="flete-preview" style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:16px;font-family:var(--mono);font-size:12px;display:none">
+            <div style="color:var(--text2);font-size:10px;letter-spacing:1px;margin-bottom:8px">RESUMEN</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <div><span style="color:var(--text2)">Calculado:</span> <strong id="flete-calc-total" style="color:var(--accent2)">—</strong></div>
+              <div><span style="color:var(--text2)">Diferencia:</span> <strong id="flete-dif" style="color:var(--text2)">—</strong></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button onclick="guardarFacturaFlete()" class="btn" style="flex:1">💾 GUARDAR</button>
+            <button onclick="cerrarModalFlete()" class="btn secondary" style="flex:1">CANCELAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div><!-- /main -->
 
   <!-- MODAL EDITAR OPERACIÓN (solo jefe/admin, solo pendientes) -->
@@ -1800,6 +1879,7 @@ const TABS_POR_ROL = {
     { id: 'pablo',       label: '✓ Confirmaciones' },
     { id: 'dte',         label: '📄 DTE' },
     { id: 'gerencial',   label: '📈 Gerencial' },
+    { id: 'fletes',      label: '🚛 Fletes' },
     { id: 'usuarios',    label: '👤 Usuarios' },
     { id: 'parametros',  label: '⚙ Parámetros' },
   ],
@@ -1810,6 +1890,7 @@ const TABS_POR_ROL = {
     { id: 'pablo',       label: '✓ Confirmaciones' },
     { id: 'dte',         label: '📄 DTE' },
     { id: 'gerencial',   label: '📈 Gerencial' },
+    { id: 'fletes',      label: '🚛 Fletes' },
   ],
   jefe: [
     { id: 'dashboard',   label: '▸ Dashboard' },
@@ -1879,6 +1960,7 @@ function cambiarTab(pageId, tabEl) {
   if (pageId === 'usuarios')    cargarUsuarios();
   if (pageId === 'parametros')  cargarParametros();
   if (pageId === 'gerencial')   cargarGerencial();
+  if (pageId === 'fletes')      cargarFletes();
 }
 
 // ════════════════════════════════════════════════════
@@ -4610,6 +4692,265 @@ async function abrirResumenConsolidado() {
 function cerrarConsolidado() {
   document.getElementById('modal-consolidado').style.display = 'none';
   document.body.style.overflow = '';
+}
+
+// ════════════════════════════════════════════════════
+//  MÓDULO FLETES
+// ════════════════════════════════════════════════════
+let _fletesSeleccionados = []; // viajes seleccionados para factura
+
+async function cargarFletes() {
+  await Promise.all([cargarViajesSinFactura(), cargarFacturasFletes(), cargarKPIsFletes()]);
+}
+
+async function cargarKPIsFletes() {
+  const { data: facturas } = await sb.from('fletes').select('*');
+  const { data: viajes } = await sb.from('fletes_operaciones').select('*, fletes(estado), operaciones(seguimiento(transportista))');
+
+  const total = (facturas||[]).reduce((s,f) => s + Number(f.monto_facturado||0), 0);
+  const pendiente = (facturas||[]).filter(f => f.estado === 'pendiente').reduce((s,f) => s + Number(f.monto_facturado||0), 0);
+  const pagado = (facturas||[]).filter(f => f.estado === 'pagada').reduce((s,f) => s + Number(f.monto_facturado||0), 0);
+  const sinFactura = await contarViajesSinFactura();
+
+  const fmtM = v => '$' + Number(v).toLocaleString('es-AR',{maximumFractionDigits:0});
+  document.getElementById('fletes-kpis').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Viajes sin factura</div><div class="stat-value warn">${sinFactura}</div></div>
+    <div class="stat-card"><div class="stat-label">Total facturado</div><div class="stat-value accent">${fmtM(total)}</div></div>
+    <div class="stat-card"><div class="stat-label">Pendiente de pago</div><div class="stat-value" style="color:var(--danger)">${fmtM(pendiente)}</div></div>
+    <div class="stat-card"><div class="stat-label">Total pagado</div><div class="stat-value" style="color:#4ade80">${fmtM(pagado)}</div></div>`;
+}
+
+async function contarViajesSinFactura() {
+  const { data: conFactura } = await sb.from('fletes_operaciones').select('operacion_id');
+  const idsConFactura = (conFactura||[]).map(r => r.operacion_id);
+  const { data: viajes } = await sb.from('seguimiento')
+    .select('operacion_id').not('transportista','is',null).not('f_pablo','is',null);
+  return (viajes||[]).filter(v => !idsConFactura.includes(v.operacion_id)).length;
+}
+
+async function cargarViajesSinFactura() {
+  const el = document.getElementById('fletes-sin-factura');
+  const btn = document.getElementById('btn-registrar-flete');
+
+  // Traer operacion_ids que ya tienen factura
+  const { data: conFactura } = await sb.from('fletes_operaciones').select('operacion_id');
+  const idsConFactura = (conFactura||[]).map(r => r.operacion_id);
+
+  // Traer seguimientos con transporte confirmado
+  const { data: segs } = await sb.from('seguimiento')
+    .select('operacion_id, transportista, tipo_camion, f_salida, cant_real, kg_pie, operaciones(numero, f_carga, titular, comprador, planta, categorias_json, cat)')
+    .not('transportista','is',null).not('f_pablo','is',null)
+    .order('f_salida', { ascending: false });
+
+  const sinFactura = (segs||[]).filter(s => !idsConFactura.includes(s.operacion_id));
+
+  // Traer flete calculado de costeos
+  const opIds = sinFactura.map(s => s.operacion_id);
+  const { data: costeos } = opIds.length
+    ? await sb.from('costeos').select('operacion_id, flete').in('operacion_id', opIds)
+    : { data: [] };
+  const cosMap = {};
+  (costeos||[]).forEach(c => cosMap[c.operacion_id] = c.flete);
+
+  if (!sinFactura.length) {
+    el.innerHTML = '<div class="alert info">✓ Todos los viajes tienen factura registrada</div>';
+    btn.style.display = 'none';
+    return;
+  }
+
+  btn.style.display = '';
+  _fletesSeleccionados = [];
+
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:6px 8px;font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:1px;border-bottom:1px solid var(--border);margin-bottom:4px">
+      <div></div><div>#</div><div>VENDEDOR</div><div>TRANSPORTISTA</div><div>SALIDA</div><div style="text-align:right">FLETE CALC.</div>
+    </div>` +
+    sinFactura.map(s => {
+      const op = s.operaciones;
+      const flete = cosMap[s.operacion_id];
+      const fmtM = v => v ? '$' + Number(v).toLocaleString('es-AR',{maximumFractionDigits:0}) : '—';
+      return `
+      <div id="flete-row-${s.operacion_id}" style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:8px;border-radius:6px;align-items:center;cursor:pointer;transition:background .15s"
+        onclick="toggleViajeFlete(${s.operacion_id},'${s.transportista?.replace(/'/g,"\\'")}',${flete||0})">
+        <input type="checkbox" id="chk-flete-${s.operacion_id}" onclick="event.stopPropagation();toggleViajeFlete(${s.operacion_id},'${s.transportista?.replace(/'/g,"\\'")}',${flete||0})" style="accent-color:var(--accent)">
+        <div style="font-family:var(--mono);font-size:12px;color:var(--accent)">#${op?.numero||'?'}</div>
+        <div style="font-size:12px;color:var(--white)">${op?.titular||'—'}</div>
+        <div style="font-size:12px;color:var(--accent2)">${s.transportista||'—'}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">${s.f_salida||'—'}</div>
+        <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--white);text-align:right">${fmtM(flete)}</div>
+      </div>`;
+    }).join('');
+}
+
+function toggleViajeFlete(opId, transportista, montoCalc) {
+  const chk = document.getElementById(`chk-flete-${opId}`);
+  const row = document.getElementById(`flete-row-${opId}`);
+  const idx = _fletesSeleccionados.findIndex(r => r.opId === opId);
+  if (idx >= 0) {
+    _fletesSeleccionados.splice(idx, 1);
+    chk.checked = false;
+    row.style.background = '';
+  } else {
+    _fletesSeleccionados.push({ opId, transportista, montoCalc });
+    chk.checked = true;
+    row.style.background = 'var(--bg3)';
+  }
+}
+
+function registrarFacturaFletes() {
+  if (!_fletesSeleccionados.length) {
+    alert('Seleccioná al menos un viaje');
+    return;
+  }
+  // Verificar que todos sean del mismo transportista
+  const transportistas = [...new Set(_fletesSeleccionados.map(r => r.transportista))];
+  if (transportistas.length > 1) {
+    alert('Solo podés facturar viajes del mismo transportista a la vez.\n\nTransportistas seleccionados: ' + transportistas.join(', '));
+    return;
+  }
+  const totalCalc = _fletesSeleccionados.reduce((s,r) => s + (r.montoCalc||0), 0);
+  const fmtM = v => '$' + Number(v).toLocaleString('es-AR',{maximumFractionDigits:0});
+
+  document.getElementById('flete-transp').value = transportistas[0];
+  document.getElementById('flete-fecha').value = new Date().toISOString().split('T')[0];
+  document.getElementById('flete-nrofactura').value = '';
+  document.getElementById('flete-monto').value = '';
+  document.getElementById('flete-obs').value = '';
+
+  document.getElementById('modal-flete-viajes').innerHTML = `
+    <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);margin-bottom:8px">VIAJES INCLUIDOS (${_fletesSeleccionados.length})</div>
+    <div style="background:var(--bg3);border-radius:6px;padding:10px;margin-bottom:12px">
+      ${_fletesSeleccionados.map(r => `
+        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;padding:3px 0">
+          <span style="color:var(--accent)">Op #${r.opId}</span>
+          <span style="color:var(--text2)">${r.montoCalc ? fmtM(r.montoCalc) : '—'}</span>
+        </div>`).join('')}
+      <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:flex;justify-content:space-between">
+        <span style="color:var(--text2)">Total calculado:</span>
+        <strong style="color:var(--accent2)">${fmtM(totalCalc)}</strong>
+      </div>
+    </div>`;
+
+  document.getElementById('flete-preview').style.display = '';
+  document.getElementById('flete-calc-total').textContent = fmtM(totalCalc);
+  document.getElementById('flete-dif').textContent = '—';
+
+  // Listener en monto para mostrar diferencia
+  document.getElementById('flete-monto').oninput = function() {
+    const monto = parseFloat(this.value) || 0;
+    const dif = monto - totalCalc;
+    const difEl = document.getElementById('flete-dif');
+    difEl.textContent = (dif >= 0 ? '+' : '') + fmtM(dif);
+    difEl.style.color = dif > 0 ? 'var(--danger)' : dif < 0 ? '#4ade80' : 'var(--text2)';
+  };
+
+  const modal = document.getElementById('modal-flete');
+  modal.style.display = 'flex';
+}
+
+function cerrarModalFlete() {
+  document.getElementById('modal-flete').style.display = 'none';
+}
+
+async function guardarFacturaFlete() {
+  const transp    = document.getElementById('flete-transp').value;
+  const nroFc     = document.getElementById('flete-nrofactura').value.trim();
+  const fecha     = document.getElementById('flete-fecha').value;
+  const monto     = parseFloat(document.getElementById('flete-monto').value) || null;
+  const obs       = document.getElementById('flete-obs').value.trim();
+
+  if (!monto) { alert('Ingresá el monto facturado'); return; }
+
+  const { data: flete, error } = await sb.from('fletes').insert([{
+    transportista: transp,
+    nro_factura:   nroFc || null,
+    fecha_factura: fecha || null,
+    monto_facturado: monto,
+    observaciones: obs || null,
+    estado: 'recibida',
+    responsable: 'Darwash',
+  }]).select().single();
+
+  if (error) { alert('Error: ' + error.message); return; }
+
+  // Vincular viajes a la factura
+  const rows = _fletesSeleccionados.map(r => ({
+    flete_id: flete.id,
+    operacion_id: r.opId,
+    monto_calculado: r.montoCalc || null,
+    monto_asignado: monto / _fletesSeleccionados.length, // prorrateo simple
+  }));
+  await sb.from('fletes_operaciones').insert(rows);
+
+  cerrarModalFlete();
+  mostrarAlerta('alert-fletes', 'success', `✅ Factura de ${transp} registrada por $${Number(monto).toLocaleString('es-AR')}`);
+  _fletesSeleccionados = [];
+  cargarFletes();
+}
+
+async function cargarFacturasFletes() {
+  const el = document.getElementById('fletes-facturas');
+  const estadoFiltro = document.getElementById('fletes-filtro-estado')?.value || '';
+
+  let query = sb.from('fletes').select('*, fletes_operaciones(operacion_id, monto_calculado, monto_asignado)').order('created_at', { ascending: false });
+  if (estadoFiltro) query = query.eq('estado', estadoFiltro);
+  const { data: facturas } = await query;
+
+  if (!facturas?.length) {
+    el.innerHTML = '<div class="alert info">Sin facturas registradas</div>';
+    return;
+  }
+
+  const estadoBadge = e => ({
+    pendiente: '<span style="font-family:var(--mono);font-size:10px;padding:2px 8px;background:rgba(250,204,21,0.1);border:1px solid var(--warn);border-radius:4px;color:var(--warn)">PENDIENTE</span>',
+    recibida:  '<span style="font-family:var(--mono);font-size:10px;padding:2px 8px;background:rgba(99,179,237,0.1);border:1px solid var(--accent2);border-radius:4px;color:var(--accent2)">RECIBIDA</span>',
+    pagada:    '<span style="font-family:var(--mono);font-size:10px;padding:2px 8px;background:rgba(74,222,128,0.1);border:1px solid #4ade80;border-radius:4px;color:#4ade80">PAGADA</span>',
+  }[e] || e);
+
+  const fmtM = v => v ? '$' + Number(v).toLocaleString('es-AR',{maximumFractionDigits:0}) : '—';
+
+  el.innerHTML = facturas.map(f => {
+    const totalCalc = (f.fletes_operaciones||[]).reduce((s,r) => s + Number(r.monto_calculado||0), 0);
+    const dif = Number(f.monto_facturado||0) - totalCalc;
+    return `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div>
+          <div style="font-family:var(--mono);font-size:12px;color:var(--accent2);font-weight:600">${f.transportista}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:2px">${f.nro_factura ? 'FC ' + f.nro_factura : 'Sin N° factura'} ${f.fecha_factura ? '· ' + f.fecha_factura : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          ${estadoBadge(f.estado)}
+          <strong style="font-family:var(--mono);font-size:14px;color:#facc15">${fmtM(f.monto_facturado)}</strong>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;font-family:var(--mono);font-size:11px;flex-wrap:wrap">
+        <span style="color:var(--text2)">${f.fletes_operaciones?.length || 0} viaje${f.fletes_operaciones?.length !== 1 ? 's' : ''}</span>
+        ${totalCalc ? `<span style="color:var(--text2)">Calculado: <strong style="color:var(--accent2)">${fmtM(totalCalc)}</strong></span>` : ''}
+        ${totalCalc ? `<span style="color:var(--text2)">Diferencia: <strong style="color:${dif>0?'var(--danger)':dif<0?'#4ade80':'var(--text2)'}">${dif>=0?'+':''}${fmtM(dif)}</strong></span>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        ${f.estado !== 'pagada' ? `
+          ${f.estado === 'recibida' ? `<button onclick="cambiarEstadoFlete(${f.id},'pagada')" style="font-family:var(--mono);font-size:10px;padding:4px 12px;background:transparent;border:1px solid #4ade80;border-radius:4px;color:#4ade80;cursor:pointer">✓ MARCAR PAGADA</button>` : ''}
+          ${f.estado === 'pendiente' ? `<button onclick="cambiarEstadoFlete(${f.id},'recibida')" style="font-family:var(--mono);font-size:10px;padding:4px 12px;background:transparent;border:1px solid var(--accent2);border-radius:4px;color:var(--accent2);cursor:pointer">MARCAR RECIBIDA</button>` : ''}
+        ` : ''}
+        <button onclick="eliminarFlete(${f.id})" style="font-family:var(--mono);font-size:10px;padding:4px 12px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer">✕ ELIMINAR</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function cambiarEstadoFlete(fleteId, estado) {
+  const payload = { estado };
+  if (estado === 'pagada') payload.fecha_pago = new Date().toISOString().split('T')[0];
+  await sb.from('fletes').update(payload).eq('id', fleteId);
+  cargarFletes();
+}
+
+async function eliminarFlete(fleteId) {
+  if (!confirm('¿Eliminar esta factura? Los viajes quedarán sin factura asignada.')) return;
+  await sb.from('fletes').delete().eq('id', fleteId);
+  cargarFletes();
 }
 
 // ════════════════════════════════════════════════════
