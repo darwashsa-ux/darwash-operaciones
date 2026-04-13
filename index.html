@@ -3105,9 +3105,8 @@ function renderModalResumen(op, seg, rom, cos) {
     ${!cos ? aviso('Sin costeo cargado — los indicadores económicos no están disponibles') : `
     <!-- INDICADORES ECONÓMICOS -->
     <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">INDICADORES ECONÓMICOS</div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px">
       ${card('Total Venta', fmtM(total), '#facc15')}
-      ${card('Total Gastos', fmtM(gastos), 'var(--danger)')}
       ${card('Neto', fmtM(neto), neto>=0?'#4ade80':'var(--danger)')}
     </div>
 
@@ -3118,8 +3117,9 @@ function renderModalResumen(op, seg, rom, cos) {
       ${card('x Cabeza', fmtM(pxCabeza), '#facc15')}
     </div>
 
-    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">GASTOS UNITARIOS</div>
-    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">GASTOS</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+      ${card('Total Gastos', fmtM(gastos), 'var(--danger)')}
       ${card('Gasto x Kg Carne', fmtMd(gastoXKgC), 'var(--danger)')}
       ${card('Gasto x Kg Al Pie', fmtMd(gastoXKgP), 'var(--danger)')}
     </div>
@@ -3131,12 +3131,11 @@ function renderModalResumen(op, seg, rom, cos) {
     </div>
 
     ${kgDebast ? `
-    <div style="background:var(--bg3);border-radius:8px;padding:12px 14px;border:1px solid var(--border);margin-bottom:8px">
-      <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">DEBASTE ${debaste}% → ${fmtKg(kgDebast)}</div>
-      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
-        ${card('Precio Hacienda Al Pie', fmtMd(pxKgDebast), 'var(--accent2)', true)}
-        ${card('Total / Kg Debastados', fmtM(total) + ' ÷ ' + fmtKg(kgDebast), 'var(--text2)', true)}
-      </div>
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">DEBASTE</div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px">
+      ${card('% Debaste', debaste + '%', 'var(--accent2)')}
+      ${card('Kg Netos Debastados', fmtKg(kgDebast), 'var(--accent2)')}
+      ${card('Precio x Kg Al Pie Debastado', fmtMd(pxKgDebast), 'var(--accent2)')}
     </div>` : ''}
     `}
   </div>`;
