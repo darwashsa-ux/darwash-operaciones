@@ -219,6 +219,20 @@
   :root.jefe #login-screen { background: #f0f0f0; }
   :root.jefe .ops-table tbody tr:nth-child(even) td { background: #f0f0f0; }
   :root.jefe .ops-table tbody tr:hover td { background: #ddeedd !important; }
+  /* Arreglar colores ilegibles en Optimus */
+  :root.jefe [style*="color:#facc15"],
+  :root.jefe [style*="color: #facc15"] { color: #b06000 !important; }
+  :root.jefe [style*="color:var(--warn)"] { color: #995500 !important; }
+  :root.jefe [style*="color:var(--accent2)"] { color: #0044aa !important; }
+  :root.jefe [style*="color:#4ade80"] { color: #006600 !important; }
+  :root.jefe [style*="color:var(--accent)"] { color: #006600 !important; }
+  :root.jefe .stat-value { color: #000 !important; }
+  :root.jefe .stat-value.accent { color: #006600 !important; }
+  :root.jefe .stat-value.warn { color: #995500 !important; }
+  :root.jefe .stat-value.blue { color: #0044aa !important; }
+  :root.jefe .card-title { color: #000 !important; }
+  :root.jefe .detail-item-label { color: #444 !important; }
+  :root.jefe .detail-item-value { color: #000 !important; }
 
   /* ── LOGIN ────────────────────────────────────────── */
   #login-screen {
@@ -1755,13 +1769,13 @@
           <button class="modal-close" onclick="cerrarModalDetalle()">&#x2715;</button>
         </div>
         <div class="modal-tabs" id="modal-tabs-container">
-          <div class="modal-tab active" onclick="cambiarModalTab('resumen',this)">&#x1F4CA; Resumen</div>
-          <div class="modal-tab" onclick="cambiarModalTab('detalle',this)">&#x1F4CB; Detalle</div>
-          <div class="modal-tab" onclick="cambiarModalTab('archivos',this)">&#x1F4C1; Archivos</div>
-          <div class="modal-tab" onclick="cambiarModalTab('historial',this)">&#x1F4CA; Historial</div>
-          <div class="modal-tab tab-admin-completo" onclick="cambiarModalTab('pesada',this)">&#x2696; Pesada</div>
-          <div class="modal-tab tab-admin-completo" onclick="cambiarModalTab('romaneo',this)">&#x1F969; Romaneo</div>
-          <div class="modal-tab tab-admin-completo" onclick="cambiarModalTab('costeo',this)">&#x1F4B0; Costeo</div>
+          <div class="modal-tab active" onclick="cambiarModalTab('resumen',this)">📊 Resumen</div>
+          <div class="modal-tab" onclick="cambiarModalTab('detalle',this)">📋 Detalle</div>
+          <div class="modal-tab" onclick="cambiarModalTab('archivos',this)">📁 Archivos</div>
+          <div class="modal-tab tab-no-visitante" onclick="cambiarModalTab('historial',this)">📊 Historial</div>
+          <div class="modal-tab tab-admin-completo" onclick="cambiarModalTab('pesada',this)">⚖ Pesada</div>
+          <div class="modal-tab tab-admin-completo" onclick="cambiarModalTab('romaneo',this)">🥩 Romaneo</div>
+          <div class="modal-tab tab-admin-completo" onclick="cambiarModalTab('costeo',this)">💰 Costeo</div>
         </div>
       </div>
       <div class="modal-body">
@@ -2121,10 +2135,14 @@ function montarApp() {
   document.getElementById('badge-nombre').textContent = usuario.nombre;
   setTimeout(verificarNotificaciones, 500);
 
-  // Ocultar tabs de modal que no corresponden al rol
-  const puedeEditar = ['administrador','completo','admin','jefe'].includes(usuario.rol);
+  // Pestañas del modal según rol
+  const puedeEditar   = ['administrador','completo','admin','jefe'].includes(usuario.rol);
+  const esVisitante   = usuario.rol === 'visitante';
   document.querySelectorAll('.tab-admin-completo').forEach(t => {
     t.style.display = puedeEditar ? '' : 'none';
+  });
+  document.querySelectorAll('.tab-no-visitante').forEach(t => {
+    t.style.display = esVisitante ? 'none' : '';
   });
 
   cargarMaestroClientes();
