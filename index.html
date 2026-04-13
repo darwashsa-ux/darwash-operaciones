@@ -4276,11 +4276,30 @@ function calcularPreviewCosteo(kgCarne, kgBalanza, cabezas) {
 function calcularSubtotalCat(idx, kgCarne) {
   const precio = parseFloat(document.getElementById(`cos-pc-${idx}`)?.value) || 0;
   const el = document.getElementById(`cos-st-${idx}`);
-  if (!el) return;
-  if (precio && kgCarne) {
-    el.textContent = '$' + Math.round(precio * kgCarne).toLocaleString('es-AR');
-  } else {
-    el.textContent = '—';
+  if (el) {
+    el.textContent = precio && kgCarne
+      ? '$' + Math.round(precio * kgCarne).toLocaleString('es-AR')
+      : '—';
+  }
+  // Sumar todos los subtotales y completar total venta
+  let total = 0;
+  let allFilled = true;
+  let i = 0;
+  while (document.getElementById(`cos-pc-${i}`) !== null) {
+    const p = parseFloat(document.getElementById(`cos-pc-${i}`)?.value) || 0;
+    const stEl = document.getElementById(`cos-st-${i}`);
+    if (stEl && stEl.textContent !== '—' && p) {
+      const raw = stEl.textContent.replace(/\$|\./g,'').replace(',','.');
+      total += parseFloat(raw) || 0;
+    } else {
+      allFilled = false;
+    }
+    i++;
+  }
+  const totalInp = document.getElementById('cos-total');
+  if (totalInp && total > 0) {
+    totalInp.value = Math.round(total);
+    totalInp.style.borderColor = 'var(--accent)';
   }
 }
 
