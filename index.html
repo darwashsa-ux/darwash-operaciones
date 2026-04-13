@@ -2425,14 +2425,11 @@ async function cargarPablo() {
           </div>`;
     return `
     <div class="card" style="margin-bottom:12px">
-      <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:12px">
-        <div>
-          <div style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:6px">#${op.numero} — ${op.f_carga}</div>
-          <div style="font-size:15px;font-weight:600;color:var(--white);margin-bottom:4px">${op.titular} | ${op.cant || '?'} ${tieneMultiCat ? op.categorias_json.map(r=>r.cant+' '+r.cat).join(' + ') : (op.cat||'')} ${op.raza || ''}</div>
-          <div style="color:var(--text2)">${op.comprador || '?'} (${op.planta || '?'}) · Destino: ${op.destino || '?'}</div>
-          ${op.acuerdo_vend ? `<div style="color:var(--text2);margin-top:4px">Acuerdo: ${op.acuerdo_vend}</div>` : ''}
-        </div>
-        <button class="btn warn small" onclick="confirmarPablo(${op.id}, ${op.numero})">✓ CONFIRMAR CARGA</button>
+      <div style="margin-bottom:12px">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--accent);margin-bottom:6px">#${op.numero} — ${op.f_carga}</div>
+        <div style="font-size:15px;font-weight:600;color:var(--white);margin-bottom:4px">${op.titular} | ${op.cant || '?'} ${tieneMultiCat ? op.categorias_json.map(r=>r.cant+' '+r.cat).join(' + ') : (op.cat||'')} ${op.raza || ''}</div>
+        <div style="color:var(--text2)">${op.comprador || '?'} (${op.planta || '?'}) · Destino: ${op.destino || '?'}</div>
+        ${op.acuerdo_vend ? `<div style="color:var(--text2);margin-top:4px">Acuerdo: ${op.acuerdo_vend}</div>` : ''}
       </div>
       <div class="sep"></div>
       <div class="form-grid" style="gap:12px">
@@ -2482,6 +2479,9 @@ async function cargarPablo() {
           <label>Hora de salida</label>
           <input type="time" id="pablo-hsalida-${op.id}">
         </div>
+      </div>
+      <div style="margin-top:16px;text-align:right">
+        <button class="btn warn" onclick="confirmarPablo(${op.id}, ${op.numero})" style="padding:12px 32px;font-size:12px">✓ CONFIRMAR CARGA #${op.numero}</button>
       </div>
     </div>`;
   }).join('');
