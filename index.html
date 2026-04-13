@@ -1094,10 +1094,11 @@
           <div class="field">
             <label>Rol</label>
             <select id="edit-rol">
-              <option value="admin">admin — Administrador total</option>
-              <option value="jefe">jefe — Carga operaciones</option>
-              <option value="pablo">pablo — Confirma cargas</option>
-              <option value="dte">dte — Emite DTE</option>
+              <option value="administrador">administrador — Acceso total</option>
+              <option value="completo">completo — Acceso completo sin usuarios/parámetros</option>
+              <option value="jefe">jefe — Ver todo + cargar operaciones</option>
+              <option value="encargado_cargas">encargado_cargas — Cargar y confirmar operaciones</option>
+              <option value="visitante">visitante — Solo lectura</option>
             </select>
           </div>
           <div class="field">
@@ -1233,14 +1234,14 @@
           </div>
           <button class="modal-close" onclick="cerrarModalDetalle()">&#x2715;</button>
         </div>
-        <div class="modal-tabs">
+        <div class="modal-tabs" id="modal-tabs-container">
           <div class="modal-tab active" onclick="cambiarModalTab('resumen',this)">&#x1F4CA; Resumen</div>
           <div class="modal-tab" onclick="cambiarModalTab('detalle',this)">&#x1F4CB; Detalle</div>
           <div class="modal-tab" onclick="cambiarModalTab('archivos',this)">&#x1F4C1; Archivos</div>
           <div class="modal-tab" onclick="cambiarModalTab('historial',this)">&#x1F4CA; Historial</div>
-          <div class="modal-tab" onclick="cambiarModalTab('pesada',this)">&#x2696; Pesada</div>
-          <div class="modal-tab" onclick="cambiarModalTab('romaneo',this)">&#x1F969; Romaneo</div>
-          <div class="modal-tab" onclick="cambiarModalTab('costeo',this)">&#x1F4B0; Costeo</div>
+          <div class="modal-tab tab-admin-completo" onclick="cambiarModalTab('pesada',this)">&#x2696; Pesada</div>
+          <div class="modal-tab tab-admin-completo" onclick="cambiarModalTab('romaneo',this)">&#x1F969; Romaneo</div>
+          <div class="modal-tab tab-admin-completo" onclick="cambiarModalTab('costeo',this)">&#x1F4B0; Costeo</div>
         </div>
       </div>
       <div class="modal-body">
@@ -1383,7 +1384,7 @@ async function cerrarSesion() {
 //  MONTAR APP SEGÚN ROL
 // ════════════════════════════════════════════════════
 const TABS_POR_ROL = {
-  admin: [
+  administrador: [
     { id: 'dashboard',   label: '▸ Dashboard' },
     { id: 'nueva-carga', label: '+ Nueva Carga' },
     { id: 'seguimiento', label: '≡ Seguimiento' },
@@ -1392,21 +1393,34 @@ const TABS_POR_ROL = {
     { id: 'usuarios',    label: '👤 Usuarios' },
     { id: 'parametros',  label: '⚙ Parámetros' },
   ],
+  completo: [
+    { id: 'dashboard',   label: '▸ Dashboard' },
+    { id: 'nueva-carga', label: '+ Nueva Carga' },
+    { id: 'seguimiento', label: '≡ Seguimiento' },
+    { id: 'pablo',       label: '✓ Confirmaciones' },
+    { id: 'dte',         label: '📄 DTE' },
+  ],
   jefe: [
     { id: 'dashboard',   label: '▸ Dashboard' },
     { id: 'nueva-carga', label: '+ Nueva Carga' },
     { id: 'seguimiento', label: '≡ Seguimiento' },
+    { id: 'dte',         label: '📄 DTE' },
   ],
-  pablo: [
+  encargado_cargas: [
     { id: 'dashboard',   label: '▸ Dashboard' },
-    { id: 'pablo',       label: '✓ Mis Cargas' },
+    { id: 'nueva-carga', label: '+ Nueva Carga' },
+    { id: 'seguimiento', label: '≡ Seguimiento' },
+    { id: 'pablo',       label: '✓ Confirmaciones' },
+    { id: 'dte',         label: '📄 DTE' },
+  ],
+  visitante: [
+    { id: 'dashboard',   label: '▸ Dashboard' },
     { id: 'seguimiento', label: '≡ Seguimiento' },
   ],
-  dte: [
-    { id: 'dashboard',   label: '▸ Dashboard' },
-    { id: 'dte',         label: '📄 Emitir DTE' },
-    { id: 'seguimiento', label: '≡ Seguimiento' },
-  ],
+  // compatibilidad con roles viejos por si acaso
+  admin:  [{ id: 'dashboard', label: '▸ Dashboard' }, { id: 'nueva-carga', label: '+ Nueva Carga' }, { id: 'seguimiento', label: '≡ Seguimiento' }, { id: 'pablo', label: '✓ Confirmaciones' }, { id: 'dte', label: '📄 DTE' }, { id: 'usuarios', label: '👤 Usuarios' }, { id: 'parametros', label: '⚙ Parámetros' }],
+  pablo:  [{ id: 'dashboard', label: '▸ Dashboard' }, { id: 'pablo', label: '✓ Mis Cargas' }, { id: 'seguimiento', label: '≡ Seguimiento' }],
+  dte:    [{ id: 'dashboard', label: '▸ Dashboard' }, { id: 'dte', label: '📄 Emitir DTE' }, { id: 'seguimiento', label: '≡ Seguimiento' }],
 };
 
 function montarApp() {
@@ -1415,6 +1429,12 @@ function montarApp() {
   document.getElementById('badge-rol').textContent    = usuario.rol;
   document.getElementById('badge-nombre').textContent = usuario.nombre;
   setTimeout(verificarNotificaciones, 500);
+
+  // Ocultar tabs de modal que no corresponden al rol
+  const puedeEditar = ['administrador','completo','admin'].includes(usuario.rol);
+  document.querySelectorAll('.tab-admin-completo').forEach(t => {
+    t.style.display = puedeEditar ? '' : 'none';
+  });
 
   cargarMaestroClientes();
   const tabs    = TABS_POR_ROL[usuario.rol] || [];
@@ -2170,7 +2190,7 @@ function renderTablaOps(ops, detallado) {
       <td>${op.cant || '?'} <strong>${op.cat || ''}</strong> ${op.raza || ''}</td>
       <td>${op.comprador || '—'} <span style="color:var(--text2);font-size:12px">(${op.planta || '?'})</span></td>
       <td><span class="estado-badge estado-${op.estado}">${op.estado}</span></td>
-      <td>${['admin','jefe'].includes(usuario?.rol) && op.estado === 'pendiente' ? `
+      <td>${['administrador','completo','admin'].includes(usuario?.rol) && op.estado === 'pendiente' ? `
         <div style="display:flex;gap:4px">
           <button onclick="event.stopPropagation();abrirEditarOp(${op.id})"
             style="font-family:var(--mono);font-size:9px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--accent2);cursor:pointer"
@@ -2216,7 +2236,7 @@ function renderTablaOps(ops, detallado) {
         const color = rinde >= 55 ? '#4ade80' : rinde >= 48 ? '#facc15' : '#f87171';
         return '<span style="font-family:var(--mono);font-size:12px;font-weight:700;color:' + color + '">' + rinde + '%</span>';
       })()}</td>
-      <td>${['admin','jefe'].includes(usuario?.rol) ? `<button onclick="event.stopPropagation();duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer" title="Duplicar">⧉ DUP</button>` : ''}</td>
+      <td>${['administrador','completo','admin'].includes(usuario?.rol) ? `<button onclick="event.stopPropagation();duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer" title="Duplicar">⧉ DUP</button>` : ''}</td>
     </tr>`).join('');
 
   return `<div style="width:100%">
