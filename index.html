@@ -1216,6 +1216,7 @@
           <div class="modal-tab active" onclick="cambiarModalTab('detalle',this)">&#x1F4CB; Detalle</div>
           <div class="modal-tab" onclick="cambiarModalTab('archivos',this)">&#x1F4C1; Archivos</div>
           <div class="modal-tab" onclick="cambiarModalTab('historial',this)">&#x1F4CA; Historial</div>
+          <div class="modal-tab" onclick="cambiarModalTab('pesada',this)">&#x2696; Pesada</div>
           <div class="modal-tab" onclick="cambiarModalTab('romaneo',this)">&#x1F969; Romaneo</div>
           <div class="modal-tab" onclick="cambiarModalTab('costeo',this)">&#x1F4B0; Costeo</div>
         </div>
@@ -1224,6 +1225,7 @@
         <div id="modal-tab-detalle"></div>
         <div id="modal-tab-archivos" style="display:none"></div>
         <div id="modal-tab-historial" style="display:none"></div>
+        <div id="modal-tab-pesada" style="display:none"></div>
         <div id="modal-tab-romaneo" style="display:none"></div>
         <div id="modal-tab-costeo" style="display:none"></div>
       </div>
@@ -2555,6 +2557,7 @@ async function abrirDetalleOperacion(opId) {
   renderModalDetalle(op, seg, rom);
   renderModalArchivos(op, seg);
   renderModalHistorial(op, seg);
+  renderModalPesada(op, seg);
   renderModalRomaneo(op, seg, rom);
   renderModalCosteo(op, seg, rom);
 }
@@ -2563,7 +2566,7 @@ function cerrarModalDetalle() {
   document.getElementById('modal-detalle').classList.remove('open');
   document.body.style.overflow = '';
   document.querySelectorAll('.modal-tab').forEach((t,i) => t.classList.toggle('active', i===0));
-  ['detalle','archivos','historial','romaneo','costeo'].forEach((t,i) => {
+  ['detalle','archivos','historial','pesada','romaneo','costeo'].forEach((t,i) => {
     document.getElementById('modal-tab-' + t).style.display = i === 0 ? '' : 'none';
   });
 }
@@ -2571,7 +2574,7 @@ function cerrarModalDetalle() {
 function cambiarModalTab(tab, el) {
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['detalle','archivos','historial','romaneo','costeo'].forEach(t => {
+  ['detalle','archivos','historial','pesada','romaneo','costeo'].forEach(t => {
     document.getElementById('modal-tab-' + t).style.display = t === tab ? '' : 'none';
   });
 }
@@ -3030,8 +3033,133 @@ window.onload = async () => {
 };
 
 // ════════════════════════════════════════════════════
-//  MODAL TAB — COSTEO
+//  MODAL TAB — PESADA
 // ════════════════════════════════════════════════════
+function renderModalPesada(op, seg) {
+  const el = document.getElementById('modal-tab-pesada');
+  const inp = (id, val, placeholder='', color='var(--white)') =>
+    `<input type="number" step="any" id="pes-${id}" value="${val||''}" placeholder="${placeholder}"
+     style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:${color};font-size:13px">`;
+
+  const tienePesada = seg?.peso_neto || seg?.kg_bruto;
+
+  // Calcular kg neto si hay bruto y tara
+  const kgNeto  = seg?.peso_neto  ? Number(seg.peso_neto)  : null;
+  const kgBruto = seg?.kg_bruto   ? Number(seg.kg_bruto)   : null;
+  const kgTara  = seg?.kg_tara    ? Number(seg.kg_tara)    : null;
+  const debaste = seg?.debaste_pct ? Number(seg.debaste_pct) : null;
+  const kgDebastado = kgNeto && debaste ? (kgNeto * (1 - debaste/100)).toFixed(0) : null;
+
+  const fmtKg = v => v != null ? Number(v).toLocaleString('es-AR') + ' kg' : '—';
+
+  el.innerHTML = `
+  <div class="detail-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="detail-section-title" style="color:var(--accent2);margin-bottom:0">⚖ Pesada Balanza Pública</div>
+      ${tienePesada ? '<span style="font-family:var(--mono);font-size:10px;color:var(--success);background:rgba(74,222,128,0.1);padding:3px 10px;border-radius:4px;border:1px solid var(--success)">✓ CARGADA</span>' : '<span style="font-family:var(--mono);font-size:10px;color:var(--warn);background:rgba(250,204,21,0.1);padding:3px 10px;border-radius:4px;border:1px solid var(--warn)">PENDIENTE</span>'}
+    </div>
+
+    ${tienePesada ? `
+    <!-- DATOS ACTUALES -->
+    <div class="detail-grid" style="margin-bottom:16px">
+      <div class="detail-item"><div class="detail-item-label">Kg Bruto</div>
+        <div class="detail-item-value">${fmtKg(kgBruto)}</div></div>
+      <div class="detail-item"><div class="detail-item-label">Tara</div>
+        <div class="detail-item-value">${fmtKg(kgTara)}</div></div>
+      <div class="detail-item"><div class="detail-item-label">Kg Neto ⭐</div>
+        <div class="detail-item-value" style="color:var(--accent2);font-weight:700">${fmtKg(kgNeto)}</div></div>
+      ${seg.f_pesada ? `<div class="detail-item"><div class="detail-item-label">Fecha Pesada</div>
+        <div class="detail-item-value">${seg.f_pesada}</div></div>` : ''}
+      ${seg.ticket_balanza ? `<div class="detail-item"><div class="detail-item-label">Ticket</div>
+        <div class="detail-item-value">${seg.ticket_balanza}</div></div>` : ''}
+      ${seg.balanza ? `<div class="detail-item"><div class="detail-item-label">Balanza</div>
+        <div class="detail-item-value">${seg.balanza}</div></div>` : ''}
+    </div>
+    ${debaste != null ? `
+    <div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:16px">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--text2);margin-bottom:8px">DEBASTE</div>
+      <div class="detail-grid">
+        <div class="detail-item"><div class="detail-item-label">% Debaste</div>
+          <div class="detail-item-value">${debaste}%</div></div>
+        <div class="detail-item"><div class="detail-item-label">Kg Debastados</div>
+          <div class="detail-item-value" style="color:var(--accent2)">${fmtKg(kgDebastado)}</div></div>
+      </div>
+    </div>` : ''}
+    <div style="height:1px;background:var(--border);margin-bottom:16px"></div>
+    ` : ''}
+
+    <!-- FORMULARIO -->
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--text2);margin-bottom:12px">${tienePesada ? 'MODIFICAR DATOS' : 'CARGAR PESADA'}</div>
+    <div class="detail-grid">
+      <div class="detail-item"><div class="detail-item-label">Kg Bruto</div>${inp('bruto', kgBruto)}</div>
+      <div class="detail-item"><div class="detail-item-label">Tara (kg)</div>${inp('tara', kgTara)}</div>
+      <div class="detail-item"><div class="detail-item-label">Kg Neto ⭐</div>${inp('neto', kgNeto, 'Se calcula o ingresá', 'var(--accent2)')}</div>
+      <div class="detail-item"><div class="detail-item-label">% Debaste</div>${inp('debaste', debaste, 'ej: 2.5')}</div>
+      <div class="detail-item"><div class="detail-item-label">Fecha Pesada</div>
+        <input type="date" id="pes-fecha" value="${seg?.f_pesada||''}" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px">
+      </div>
+      <div class="detail-item"><div class="detail-item-label">Ticket N°</div>
+        <input type="text" id="pes-ticket" value="${seg?.ticket_balanza||''}" placeholder="Nro. ticket" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px">
+      </div>
+      <div class="detail-item"><div class="detail-item-label">Balanza</div>
+        <input type="text" id="pes-balanza" value="${seg?.balanza||''}" placeholder="Nombre balanza" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px">
+      </div>
+      <div class="detail-item"><div class="detail-item-label">Dominio camión</div>
+        <input type="text" id="pes-dominio" value="${seg?.dominio_balanza||''}" placeholder="ej: ABC123" style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--white);font-size:13px">
+      </div>
+    </div>
+
+    <div style="margin-top:8px;font-size:11px;color:var(--text2);font-family:var(--mono)">
+      💡 Si ingresás Bruto y Tara, el Kg Neto se calcula automático al guardar. O podés ingresar el Kg Neto directamente.
+    </div>
+
+    <div style="margin-top:16px">
+      <button onclick="guardarPesada(${op.id})"
+        style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:10px 20px;background:var(--success);border:none;border-radius:6px;color:#000;cursor:pointer;font-weight:700">
+        💾 GUARDAR PESADA
+      </button>
+    </div>
+  </div>`;
+}
+
+async function guardarPesada(opId) {
+  const bruto   = parseFloat(document.getElementById('pes-bruto')?.value)   || null;
+  const tara    = parseFloat(document.getElementById('pes-tara')?.value)    || null;
+  const netoInp = parseFloat(document.getElementById('pes-neto')?.value)    || null;
+  const debaste = parseFloat(document.getElementById('pes-debaste')?.value) || null;
+  const fecha   = document.getElementById('pes-fecha')?.value    || null;
+  const ticket  = document.getElementById('pes-ticket')?.value   || null;
+  const balanza = document.getElementById('pes-balanza')?.value  || null;
+  const dominio = document.getElementById('pes-dominio')?.value  || null;
+
+  // Calcular neto si hay bruto y tara, sino usar el ingresado
+  const neto = (bruto && tara) ? bruto - tara : netoInp;
+
+  if (!neto) { alert('Ingresá el Kg Neto o los datos de Bruto y Tara'); return; }
+
+  const { error } = await sb.from('seguimiento').update({
+    kg_bruto:        bruto,
+    kg_tara:         tara,
+    peso_neto:       neto,
+    debaste_pct:     debaste,
+    f_pesada:        fecha,
+    ticket_balanza:  ticket,
+    balanza:         balanza,
+    dominio_balanza: dominio,
+    f_pesada:        fecha,
+    updated_at:      new Date()
+  }).eq('operacion_id', opId);
+
+  if (error) { alert('Error: ' + error.message); return; }
+  await abrirDetalleOperacion(opId);
+  // ir a pestaña pesada
+  const tabs = document.querySelectorAll('.modal-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  tabs[3].classList.add('active');
+  ['detalle','archivos','historial','pesada','romaneo','costeo'].forEach((t,i) => {
+    document.getElementById('modal-tab-' + t).style.display = i === 3 ? '' : 'none';
+  });
+}
 async function renderModalCosteo(op, seg, rom) {
   const el = document.getElementById('modal-tab-costeo');
   el.innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
