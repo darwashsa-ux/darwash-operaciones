@@ -1232,6 +1232,10 @@
             <input type="text" id="filtro-frigo" oninput="aplicarFiltros()" placeholder="Nombre..." style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none;width:150px">
           </div>
           <div>
+            <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">N° DTE</div>
+            <input type="text" id="filtro-dte" oninput="aplicarFiltros()" placeholder="031246..." style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--mono);font-size:13px;outline:none;width:130px">
+          </div>
+          <div>
             <div style="font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--text2);text-transform:uppercase;margin-bottom:5px">Desde</div>
             <input type="date" id="filtro-desde" onchange="aplicarFiltros()" style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--white);padding:8px 12px;font-family:var(--sans);font-size:13px;outline:none">
           </div>
@@ -2789,11 +2793,14 @@ function cargarMas() {
   cargarSeguimiento(false);
 }
 
+const ORDEN_ESTADOS = { 'pendiente':0,'confirmada':1,'dte_emitido':2,'en_transito':3,'en_frigorifico':4,'romaneo_ok':5,'finalizada':6 };
+
 function aplicarFiltros() {
   const estado   = document.getElementById('filtro-estado')?.value || '';
   const consig   = document.getElementById('filtro-consig')?.value || '';
   const vendedor = document.getElementById('filtro-vendedor')?.value.toLowerCase() || '';
   const frigo    = document.getElementById('filtro-frigo')?.value.toLowerCase() || '';
+  const dte      = document.getElementById('filtro-dte')?.value.toLowerCase().replace(/\s/g,'') || '';
   const desde    = document.getElementById('filtro-desde')?.value || '';
   const hasta    = document.getElementById('filtro-hasta')?.value || '';
 
@@ -2802,12 +2809,19 @@ function aplicarFiltros() {
     if (consig   && op.por !== consig) return false;
     if (vendedor && !(op.titular||'').toLowerCase().includes(vendedor)) return false;
     if (frigo    && !(op.comprador||'').toLowerCase().includes(frigo) && !(op.planta||'').toLowerCase().includes(frigo)) return false;
+    if (dte      && !(op.seguimiento?.[0]?.nro_dte||'').toLowerCase().replace(/\s/g,'').includes(dte)) return false;
     if (desde    && op.f_carga < desde) return false;
     if (hasta    && op.f_carga > hasta) return false;
     return true;
   });
 
-  filtradas = sortOps(filtradas);
+  // Orden por estado (flujo operacional), luego número desc dentro de cada estado
+  filtradas = filtradas.sort((a, b) => {
+    const ea = ORDEN_ESTADOS[a.estado] ?? 99;
+    const eb = ORDEN_ESTADOS[b.estado] ?? 99;
+    if (ea !== eb) return ea - eb;
+    return b.numero - a.numero;
+  });
 
   const total = opsCache._total || 0;
   const cargadas = opsCache.length;
@@ -2860,7 +2874,7 @@ function sortBy(col) {
 }
 
 function limpiarFiltros() {
-  ['filtro-estado','filtro-consig','filtro-desde','filtro-hasta']
+  ['filtro-estado','filtro-consig','filtro-vendedor','filtro-frigo','filtro-dte','filtro-desde','filtro-hasta']
     .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
   aplicarFiltros();
 }
