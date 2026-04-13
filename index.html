@@ -4150,6 +4150,8 @@ function renderChart(id, type, labels, datasets, dsLabels, colors, isPie=false, 
     }
   });
 }
+
+async function cargarParametros() {
   // Gastos fijos
   const { data: p } = await sb.from('parametros_costos').select('*').eq('id', 1).single();
   if (p) {
