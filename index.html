@@ -1815,6 +1815,7 @@ const TABS_POR_ROL = {
     { id: 'dashboard',   label: '▸ Dashboard' },
     { id: 'nueva-carga', label: '+ Nueva Carga' },
     { id: 'seguimiento', label: '≡ Seguimiento' },
+    { id: 'gerencial',   label: '📊 Gerencial' },
   ],
   encargado_cargas: [
     { id: 'dashboard',   label: '▸ Dashboard' },
@@ -1841,7 +1842,7 @@ function montarApp() {
   setTimeout(verificarNotificaciones, 500);
 
   // Ocultar tabs de modal que no corresponden al rol
-  const puedeEditar = ['administrador','completo','admin'].includes(usuario.rol);
+  const puedeEditar = ['administrador','completo','admin','jefe'].includes(usuario.rol);
   document.querySelectorAll('.tab-admin-completo').forEach(t => {
     t.style.display = puedeEditar ? '' : 'none';
   });
