@@ -4752,7 +4752,7 @@ async function cargarViajesSinFactura() {
 
   // Traer seguimientos con transporte confirmado
   const { data: segs } = await sb.from('seguimiento')
-    .select('operacion_id, transportista, tipo_camion, f_salida, cant_real, kg_pie, operaciones(numero, f_carga, titular, comprador, planta, categorias_json, cat)')
+    .select('operacion_id, transportista, tipo_camion, f_salida, cant_real, kg_pie, nro_dte, operaciones(numero, f_carga, titular, comprador, planta, categorias_json, cat)')
     .not('transportista','is',null).not('f_pablo','is',null)
     .order('f_salida', { ascending: false });
 
@@ -4776,27 +4776,28 @@ async function cargarViajesSinFactura() {
   _fletesSeleccionados = [];
 
   el.innerHTML = `
-    <div style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:6px 8px;font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:1px;border-bottom:1px solid var(--border);margin-bottom:4px">
-      <div></div><div>#</div><div>VENDEDOR</div><div>TRANSPORTISTA</div><div>SALIDA</div><div style="text-align:right">FLETE CALC.</div>
+    <div style="display:grid;grid-template-columns:30px 50px 1fr 1fr 1fr 110px 1fr;gap:8px;padding:6px 8px;font-family:var(--mono);font-size:9px;color:var(--text2);letter-spacing:1px;border-bottom:1px solid var(--border);margin-bottom:4px">
+      <div></div><div>#</div><div>VENDEDOR</div><div>TRANSPORTISTA</div><div>N° DTE</div><div>SALIDA</div><div style="text-align:right">FLETE CALC.</div>
     </div>` +
     sinFactura.map(s => {
       const op = s.operaciones;
       const flete = cosMap[s.operacion_id];
       const fmtM = v => v ? '$' + Number(v).toLocaleString('es-AR',{maximumFractionDigits:0}) : '—';
       return `
-      <div id="flete-row-${s.operacion_id}" style="display:grid;grid-template-columns:30px 1fr 1fr 1fr 1fr 1fr;gap:8px;padding:8px;border-radius:6px;align-items:center;cursor:pointer;transition:background .15s"
-        onclick="toggleViajeFlete(${s.operacion_id},'${s.transportista?.replace(/'/g,"\\'")}',${flete||0})">
-        <input type="checkbox" id="chk-flete-${s.operacion_id}" onclick="event.stopPropagation();toggleViajeFlete(${s.operacion_id},'${s.transportista?.replace(/'/g,"\\'")}',${flete||0})" style="accent-color:var(--accent)">
+      <div id="flete-row-${s.operacion_id}" style="display:grid;grid-template-columns:30px 50px 1fr 1fr 1fr 110px 1fr;gap:8px;padding:8px;border-radius:6px;align-items:center;cursor:pointer;transition:background .15s"
+        onclick="toggleViajeFlete(${s.operacion_id},'${s.transportista?.replace(/'/g,"\\'")}',${flete||0},'${s.nro_dte||''}')">
+        <input type="checkbox" id="chk-flete-${s.operacion_id}" onclick="event.stopPropagation();toggleViajeFlete(${s.operacion_id},'${s.transportista?.replace(/'/g,"\\'")}',${flete||0},'${s.nro_dte||''}')" style="accent-color:var(--accent)">
         <div style="font-family:var(--mono);font-size:12px;color:var(--accent)">#${op?.numero||'?'}</div>
         <div style="font-size:12px;color:var(--white)">${op?.titular||'—'}</div>
         <div style="font-size:12px;color:var(--accent2)">${s.transportista||'—'}</div>
+        <div style="font-family:var(--mono);font-size:11px;color:${s.nro_dte?'var(--white)':'var(--text2)'}">${s.nro_dte||'—'}</div>
         <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">${s.f_salida||'—'}</div>
         <div style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--white);text-align:right">${fmtM(flete)}</div>
       </div>`;
     }).join('');
 }
 
-function toggleViajeFlete(opId, transportista, montoCalc) {
+function toggleViajeFlete(opId, transportista, montoCalc, nroDte='') {
   const chk = document.getElementById(`chk-flete-${opId}`);
   const row = document.getElementById(`flete-row-${opId}`);
   const idx = _fletesSeleccionados.findIndex(r => r.opId === opId);
@@ -4805,7 +4806,7 @@ function toggleViajeFlete(opId, transportista, montoCalc) {
     chk.checked = false;
     row.style.background = '';
   } else {
-    _fletesSeleccionados.push({ opId, transportista, montoCalc });
+    _fletesSeleccionados.push({ opId, transportista, montoCalc, nroDte });
     chk.checked = true;
     row.style.background = 'var(--bg3)';
   }
@@ -4837,6 +4838,7 @@ function registrarFacturaFletes() {
       ${_fletesSeleccionados.map(r => `
         <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;padding:3px 0">
           <span style="color:var(--accent)">Op #${r.opId}</span>
+          <span style="color:var(--text2)">${r.nroDte ? 'DTE ' + r.nroDte : '—'}</span>
           <span style="color:var(--text2)">${r.montoCalc ? fmtM(r.montoCalc) : '—'}</span>
         </div>`).join('')}
       <div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;display:flex;justify-content:space-between">
