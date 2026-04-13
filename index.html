@@ -2136,13 +2136,13 @@ function montarApp() {
   setTimeout(verificarNotificaciones, 500);
 
   // Pestañas del modal según rol
-  const puedeEditar   = ['administrador','completo','admin','jefe'].includes(usuario.rol);
-  const esVisitante   = usuario.rol === 'visitante';
+  const puedeEditar   = ['administrador','completo','admin'].includes(usuario.rol);
+  const soloBasico    = ['visitante','jefe'].includes(usuario.rol);
   document.querySelectorAll('.tab-admin-completo').forEach(t => {
     t.style.display = puedeEditar ? '' : 'none';
   });
   document.querySelectorAll('.tab-no-visitante').forEach(t => {
-    t.style.display = esVisitante ? 'none' : '';
+    t.style.display = soloBasico ? 'none' : '';
   });
 
   cargarMaestroClientes();
