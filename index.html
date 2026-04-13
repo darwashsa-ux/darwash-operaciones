@@ -737,7 +737,24 @@
   </div>
 </div>
 
-<!-- ══════════════════════════════════ APP ════════════════════════════════ -->
+<!-- ════════════════════════════════ RESET PASSWORD ════════════════════════════════ -->
+<div id="reset-screen" style="display:none;position:fixed;inset:0;background:var(--bg);align-items:center;justify-content:center;z-index:9999">
+  <div class="login-box">
+    <div class="login-logo">DARWASH SA · BULLTRADE</div>
+    <div class="login-title" style="font-size:22px">Nueva<br>Contraseña</div>
+    <div class="field">
+      <label>Nueva contraseña</label>
+      <input type="password" id="reset-password" placeholder="Mínimo 6 caracteres">
+    </div>
+    <div class="field">
+      <label>Confirmar contraseña</label>
+      <input type="password" id="reset-password2" placeholder="Repetí la contraseña">
+    </div>
+    <button class="btn" onclick="cambiarPassword()">CAMBIAR CONTRASEÑA</button>
+    <div id="reset-error" class="error-msg hidden"></div>
+    <div id="reset-ok" style="display:none;color:var(--accent);font-size:13px;margin-top:12px;text-align:center">✅ Contraseña cambiada. Podés cerrar esta ventana e ingresar.</div>
+  </div>
+</div>
 <div id="app">
 
   <!-- TOPBAR -->
@@ -1840,6 +1857,22 @@ async function cambiarPassword() {
   document.getElementById('login-screen').style.display = 'flex';
   document.getElementById('login-error').textContent = '✅ Contraseña actualizada. Ingresá con tu nueva contraseña.';
   document.getElementById('login-error').style.color = 'var(--accent)';
+}
+
+async function cambiarPassword() {
+  const p1 = document.getElementById('reset-password').value;
+  const p2 = document.getElementById('reset-password2').value;
+  const err = document.getElementById('reset-error');
+  if (!p1 || p1.length < 6) { err.textContent = '⚠ La contraseña debe tener al menos 6 caracteres'; err.classList.remove('hidden'); return; }
+  if (p1 !== p2) { err.textContent = '⚠ Las contraseñas no coinciden'; err.classList.remove('hidden'); return; }
+  err.classList.add('hidden');
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  if (error) { err.textContent = '❌ Error: ' + error.message; err.classList.remove('hidden'); return; }
+  document.getElementById('reset-ok').style.display = 'block';
+  setTimeout(() => {
+    document.getElementById('reset-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  }, 3000);
 }
 
 async function iniciarSesion() {
