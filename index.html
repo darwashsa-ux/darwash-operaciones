@@ -805,14 +805,19 @@
 
     <!-- ── PAGE: DASHBOARD ── -->
     <div class="page" id="page-dashboard">
-      <div class="stats-grid" id="stats-grid">
+
+      <!-- FILA 1: KPIs del día -->
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--text2);margin-bottom:10px;text-transform:uppercase">📅 Hoy — <span id="dash-fecha-hoy"></span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px">
         <div class="stat-card">
-          <div class="stat-label">Operaciones Hoy</div>
+          <div class="stat-label">Ops hoy</div>
           <div class="stat-value accent" id="stat-hoy">—</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:4px" id="stat-hoy-cab">— cab</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Pendientes Pablo</div>
           <div class="stat-value warn" id="stat-pablo">—</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:4px" id="stat-pablo-cab">— cab</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Pendientes DTE</div>
@@ -821,11 +826,51 @@
         <div class="stat-card">
           <div class="stat-label">En Tránsito</div>
           <div class="stat-value" id="stat-transito">—</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:4px" id="stat-transito-cab">— cab</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">En Frigorífico</div>
+          <div class="stat-value" style="color:#c084fc" id="stat-frigo">—</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--text2);margin-top:4px" id="stat-frigo-cab">— cab</div>
         </div>
       </div>
 
+      <!-- FILA 2: KPIs del mes -->
+      <div style="font-family:var(--mono);font-size:9px;letter-spacing:3px;color:var(--text2);margin-bottom:10px;text-transform:uppercase">📊 Este mes — <span id="dash-mes-label"></span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:24px">
+        <div class="stat-card">
+          <div class="stat-label">Ops del mes</div>
+          <div class="stat-value accent" id="stat-mes-ops">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Cabezas del mes</div>
+          <div class="stat-value accent" id="stat-mes-cab">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Facturación mes</div>
+          <div class="stat-value" style="color:#facc15" id="stat-mes-fact">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Fletes sin pagar</div>
+          <div class="stat-value" style="color:var(--danger)" id="stat-fletes-pend">—</div>
+        </div>
+      </div>
+
+      <!-- FILA 3: Alertas -->
+      <div id="dash-alertas" style="margin-bottom:20px"></div>
+
+      <!-- FILA 4: Próximas cargas -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-title">📅 Próximas Cargas Programadas</div>
+        <div id="dash-proximas"><div class="loading"><span class="spinner"></span>CARGANDO...</div></div>
+      </div>
+
+      <!-- FILA 5: Operaciones recientes -->
       <div class="card">
-        <div class="card-title">▸ Operaciones Recientes</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">▸ Operaciones Recientes</div>
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text2)">últimas 20</span>
+        </div>
         <div id="tabla-recientes"><div class="loading"><span class="spinner"></span>CARGANDO...</div></div>
       </div>
     </div>
@@ -2051,22 +2096,135 @@ function cambiarTab(pageId, tabEl) {
 //  DASHBOARD
 // ════════════════════════════════════════════════════
 async function cargarDashboard() {
-  const hoy = new Date().toISOString().split('T')[0];
-  const { data: ops } = await sb.from('operaciones').select('*').order('numero', { ascending: false }).limit(50);
-  if (!ops) return;
+  const hoy     = new Date().toISOString().split('T')[0];
+  const ahora   = new Date();
+  const mesIni  = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString().split('T')[0];
+  const mesFin  = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0).toISOString().split('T')[0];
 
-  const hoyCount      = ops.filter(o => o.f_carga === hoy).length;
-  const pabloCount    = ops.filter(o => o.estado === 'pendiente').length;
-  const dteCount      = ops.filter(o => o.estado === 'confirmada').length;
-  const transitoCount = ops.filter(o => o.estado === 'en_transito').length;
+  // Labels
+  document.getElementById('dash-fecha-hoy').textContent = new Date().toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+  document.getElementById('dash-mes-label').textContent = new Date().toLocaleDateString('es-AR', { month:'long', year:'numeric' });
 
-  document.getElementById('stat-hoy').textContent     = hoyCount;
-  document.getElementById('stat-pablo').textContent   = pabloCount;
-  document.getElementById('stat-dte').textContent     = dteCount;
-  document.getElementById('stat-transito').textContent = transitoCount;
+  // Traer todas las ops necesarias en paralelo
+  const [{ data: opsHoy }, { data: opsMes }, { data: opsActivas }, { data: fletesP }, { data: costeosMes }] = await Promise.all([
+    sb.from('operaciones').select('id, numero, cant, cat, categorias_json, titular, comprador, planta, estado, seguimiento(cant_real)').eq('f_carga', hoy).order('numero', { ascending: false }),
+    sb.from('operaciones').select('id, cant, estado, categorias_json').gte('f_carga', mesIni).lte('f_carga', mesFin),
+    sb.from('operaciones').select('id, numero, f_carga, cant, cat, categorias_json, raza, titular, comprador, planta, destino, estado, seguimiento(cant_real, kg_pie, nro_dte, f_pablo)').in('estado', ['pendiente','confirmada','en_transito','en_frigorifico']).order('f_carga'),
+    sb.from('fletes').select('id, monto_facturado').eq('estado', 'recibida'),
+    sb.from('costeos').select('total_venta, operacion_id').in('operacion_id', []),
+  ]);
 
-  const recientes = ops.slice(0, 10);
-  document.getElementById('tabla-recientes').innerHTML = renderTablaOps(recientes, false);
+  // Traer costeos del mes
+  const idsMes = (opsMes||[]).map(o => o.id);
+  const { data: costosMes } = idsMes.length
+    ? await sb.from('costeos').select('total_venta').in('operacion_id', idsMes)
+    : { data: [] };
+
+  const fmtM = v => '$' + Number(v).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+  const cabOps = ops => (ops||[]).reduce((s, o) => {
+    const cats = o.categorias_json?.filter(r => r.cant > 0);
+    const real = o.seguimiento?.[0]?.cant_real;
+    return s + (real || (cats?.length ? cats.reduce((a,r) => a+r.cant, 0) : (o.cant||0)));
+  }, 0);
+
+  // ── KPIs HOY ──
+  const hoyOps      = (opsHoy||[]);
+  const pendPablo   = (opsActivas||[]).filter(o => o.estado === 'pendiente');
+  const pendDTE     = (opsActivas||[]).filter(o => o.estado === 'confirmada');
+  const enTransito  = (opsActivas||[]).filter(o => o.estado === 'en_transito');
+  const enFrigo     = (opsActivas||[]).filter(o => o.estado === 'en_frigorifico');
+
+  document.getElementById('stat-hoy').textContent         = hoyOps.length;
+  document.getElementById('stat-hoy-cab').textContent     = cabOps(hoyOps) + ' cab';
+  document.getElementById('stat-pablo').textContent       = pendPablo.length;
+  document.getElementById('stat-pablo-cab').textContent   = cabOps(pendPablo) + ' cab';
+  document.getElementById('stat-dte').textContent         = pendDTE.length;
+  document.getElementById('stat-transito').textContent    = enTransito.length;
+  document.getElementById('stat-transito-cab').textContent = cabOps(enTransito) + ' cab';
+  document.getElementById('stat-frigo').textContent       = enFrigo.length;
+  document.getElementById('stat-frigo-cab').textContent   = cabOps(enFrigo) + ' cab';
+
+  // ── KPIs MES ──
+  const totalCabMes  = cabOps(opsMes||[]);
+  const totalFactMes = (costosMes||[]).reduce((s,c) => s + Number(c.total_venta||0), 0);
+  const totalFletePend = (fletesP||[]).reduce((s,f) => s + Number(f.monto_facturado||0), 0);
+
+  document.getElementById('stat-mes-ops').textContent  = (opsMes||[]).length;
+  document.getElementById('stat-mes-cab').textContent  = totalCabMes.toLocaleString('es-AR');
+  document.getElementById('stat-mes-fact').textContent = totalFactMes ? fmtM(totalFactMes) : '—';
+  document.getElementById('stat-fletes-pend').textContent = totalFletePend ? fmtM(totalFletePend) : '—';
+
+  // ── ALERTAS ──
+  const alertas = [];
+  // Confirmadas sin DTE hace más de 2hs
+  const sinDTE = (opsActivas||[]).filter(o => {
+    if (o.estado !== 'confirmada') return false;
+    const fPablo = o.seguimiento?.[0]?.f_pablo;
+    if (!fPablo) return false;
+    return (Date.now() - new Date(fPablo).getTime()) > 2 * 60 * 60 * 1000;
+  });
+  if (sinDTE.length > 0) alertas.push(`⚠️ <strong>${sinDTE.length} operación${sinDTE.length>1?'es':''}</strong> confirmada${sinDTE.length>1?'s':''} sin DTE hace más de 2hs — ${sinDTE.map(o=>'#'+o.numero).join(', ')}`);
+
+  // En frigorífico sin romaneo hace más de 5 días
+  const sinRomaneo = (opsActivas||[]).filter(o => {
+    if (o.estado !== 'en_frigorifico') return false;
+    const fPablo = o.seguimiento?.[0]?.f_pablo;
+    if (!fPablo) return false;
+    return (Date.now() - new Date(fPablo).getTime()) > 5 * 24 * 60 * 60 * 1000;
+  });
+  if (sinRomaneo.length > 0) alertas.push(`🏭 <strong>${sinRomaneo.length} operación${sinRomaneo.length>1?'es':''}</strong> en frigorífico hace más de 5 días sin romaneo — ${sinRomaneo.map(o=>'#'+o.numero).join(', ')}`);
+
+  const alertasEl = document.getElementById('dash-alertas');
+  alertasEl.innerHTML = alertas.length > 0
+    ? alertas.map(a => `<div style="background:rgba(250,204,21,0.08);border:1px solid rgba(250,204,21,0.3);border-radius:8px;padding:12px 16px;margin-bottom:8px;font-size:13px;color:var(--warn)">${a}</div>`).join('')
+    : '';
+
+  // ── PRÓXIMAS CARGAS ──
+  const manana = new Date(ahora); manana.setDate(manana.getDate() + 1);
+  const mananaStr = manana.toISOString().split('T')[0];
+  // Buscar el próximo día con cargas (hasta 7 días)
+  const { data: proximas } = await sb.from('operaciones')
+    .select('id, numero, f_carga, cant, cat, categorias_json, raza, titular, comprador, planta, estado')
+    .gte('f_carga', mananaStr)
+    .order('f_carga').limit(20);
+
+  const dashProx = document.getElementById('dash-proximas');
+  if (!proximas?.length) {
+    dashProx.innerHTML = '<div style="font-size:13px;color:var(--text2);padding:8px 0">No hay cargas programadas para los próximos días.</div>';
+  } else {
+    // Agrupar por fecha
+    const porFecha = {};
+    proximas.forEach(op => {
+      if (!porFecha[op.f_carga]) porFecha[op.f_carga] = [];
+      porFecha[op.f_carga].push(op);
+    });
+    dashProx.innerHTML = Object.entries(porFecha).map(([fecha, ops]) => {
+      const fechaLabel = new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', { weekday:'long', day:'numeric', month:'long' });
+      const totalCab = cabOps(ops);
+      return `
+        <div style="margin-bottom:16px">
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--accent);margin-bottom:8px;text-transform:uppercase">${fechaLabel} · ${ops.length} op${ops.length>1?'s':''} · ${totalCab} cab</div>
+          ${ops.map(op => {
+            const cats = op.categorias_json?.length > 1
+              ? op.categorias_json.map(r => r.cant+' '+r.cat).join(' + ')
+              : `${op.cant||'?'} ${op.cat||''} ${op.raza||''}`;
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg3);border-radius:6px;margin-bottom:4px;font-size:13px;cursor:pointer" onclick="abrirDetalleOperacion(${op.id})">
+              <span style="font-family:var(--mono);font-size:11px;color:var(--accent)">#${op.numero}</span>
+              <span style="color:var(--white);font-weight:500">${op.titular||'—'}</span>
+              <span style="color:var(--text2);font-size:12px">${cats}</span>
+              <span style="color:var(--text2);font-size:12px">${op.comprador||'—'}</span>
+              <span class="estado-badge estado-${op.estado}">${op.estado}</span>
+            </div>`;
+          }).join('')}
+        </div>`;
+    }).join('');
+  }
+
+  // ── OPERACIONES RECIENTES (últimas 20) ──
+  const { data: recientes } = await sb.from('operaciones')
+    .select('id, numero, f_carga, titular, por, cant, cat, categorias_json, raza, razas_json, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie, peso_neto, f_pesada, cant_real, cat_real)')
+    .order('numero', { ascending: false }).limit(20);
+  document.getElementById('tabla-recientes').innerHTML = renderTablaOps(recientes||[], false);
 }
 
 
