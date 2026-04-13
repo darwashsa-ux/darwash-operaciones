@@ -2574,6 +2574,12 @@ async function confirmarPablo(opId, numero) {
     updated_at: new Date()
   }).eq('id', opId);
 
+  // Garantizar que existe el registro de seguimiento antes de actualizar
+  const { data: segExiste } = await sb.from('seguimiento').select('id').eq('operacion_id', opId).maybeSingle();
+  if (!segExiste) {
+    await sb.from('seguimiento').insert([{ operacion_id: opId }]);
+  }
+
   // Actualizar seguimiento con datos de carga + transporte
   await sb.from('seguimiento').update({
     cant_real:      cantTotal,
