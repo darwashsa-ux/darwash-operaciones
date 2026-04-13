@@ -2550,6 +2550,10 @@ async function confirmarPablo(opId, numero) {
   // Generar token único para link de arribo del chofer
   const token = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
 
+  // Construir link de arribo para el chofer
+  const baseUrl = window.location.origin + window.location.pathname.replace('index.html','').replace(/\/$/, '');
+  const linkArribo = `${baseUrl}/arribo.html?token=${token}`;
+
   // Actualizar operacion — también guardar categorias_json confirmadas
   await sb.from('operaciones').update({
     estado: 'confirmada',
@@ -2571,12 +2575,9 @@ async function confirmarPablo(opId, numero) {
     f_salida:       fSalida           || null,
     hora_salida:    hSalida           || null,
     arribo_token:   token,
+    link_arribo:    linkArribo,
     updated_at:     new Date()
   }).eq('operacion_id', opId);
-
-  // Construir link de arribo para el chofer
-  const baseUrl = window.location.origin + window.location.pathname.replace('index.html','').replace(/\/$/, '');
-  const linkArribo = `${baseUrl}/arribo.html?token=${token}`;
 
   // Notificación Telegram
   const catDesc = cats.length > 1 ? cats.map(r => r.cant+' '+r.cat).join(' + ') : (cat || '?');
@@ -2797,6 +2798,13 @@ async function enviarTelegram(chatId, mensaje) {
       body: JSON.stringify({ chat_id: chatId, text: mensaje, parse_mode: 'Markdown' })
     });
   } catch(e) { console.error('Telegram error:', e); }
+}
+
+async function reenviarLinkTelegram(link, transportista, numero) {
+  if (!link) { alert('No hay link guardado para esta operación'); return; }
+  const msg = `🔗 *LINK ARRIBO — Op #${numero}*\n━━━━━━━━━━━━━━━━━━\n🚛 Transportista: *${transportista}*\n\nUsá este link para confirmar la descarga en el frigorífico:\n${link}`;
+  for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+  alert('✅ Link reenviado por Telegram');
 }
 
 function armarMensaje(op) {
@@ -3208,10 +3216,16 @@ function renderModalDetalle(op, seg, rom) {
       (seg.chofer ? '<div class="detail-item"><div class="detail-item-label">Chofer</div><div class="detail-item-value">' + seg.chofer + '</div></div>' : '') +
       (seg.f_salida ? '<div class="detail-item"><div class="detail-item-label">Salida</div><div class="detail-item-value">' + seg.f_salida + ' ' + (seg.hora_salida||'') + '</div></div>' : '') +
       (seg.f_arribo ? '<div class="detail-item"><div class="detail-item-label">Arribo</div><div class="detail-item-value" style="color:var(--accent)">' + new Date(seg.f_arribo).toLocaleString('es-AR') + '</div></div>' : '') +
-      (seg.arribo_token && !seg.f_arribo ? '<div class="detail-item" style="grid-column:1/-1"><div class="detail-item-label">🔗 Link arribo chofer</div><div class="detail-item-value" style="word-break:break-all">' +
-        '<a href="' + window.location.origin + window.location.pathname.replace('index.html','').replace(/\/$/,'') + '/arribo.html?token=' + seg.arribo_token + '" target="_blank" style="color:var(--accent2);text-decoration:underline;font-family:var(--mono);font-size:11px">📋 Abrir link de arribo</a>' +
-        '<button onclick="navigator.clipboard.writeText(\'' + window.location.origin + window.location.pathname.replace('index.html','').replace(/\/$/,'') + '/arribo.html?token=' + seg.arribo_token + '\').then(()=>alert(\'Link copiado!\'))" style="margin-left:10px;font-family:var(--mono);font-size:9px;padding:3px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer">📋 COPIAR</button>' +
-        '</div></div>' : '') +
+      (seg.arribo_token && !seg.f_arribo ? 
+        '<div class="detail-item" style="grid-column:1/-1">' +
+        '<div class="detail-item-label">🔗 Link arribo chofer</div>' +
+        '<div class="detail-item-value" style="display:flex;flex-direction:column;gap:8px">' +
+        '<code style="font-family:var(--mono);font-size:10px;color:var(--accent2);background:var(--bg3);padding:6px 10px;border-radius:4px;word-break:break-all">' + (seg.link_arribo || (window.location.origin + window.location.pathname.replace('index.html','').replace(/\/$/,'') + '/arribo.html?token=' + seg.arribo_token)) + '</code>' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+        '<a href="' + (seg.link_arribo || (window.location.origin + window.location.pathname.replace('index.html','').replace(/\/$/,'') + '/arribo.html?token=' + seg.arribo_token)) + '" target="_blank" style="font-family:var(--mono);font-size:10px;padding:5px 12px;background:transparent;border:1px solid var(--accent2);border-radius:4px;color:var(--accent2);text-decoration:none;cursor:pointer">🔗 ABRIR</a>' +
+        '<button onclick="navigator.clipboard.writeText(\'' + (seg.link_arribo || (window.location.origin + window.location.pathname.replace('index.html','').replace(/\/$/,'') + '/arribo.html?token=' + seg.arribo_token)) + '\').then(()=>this.textContent=\'✓ COPIADO!\')" style="font-family:var(--mono);font-size:10px;padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer">📋 COPIAR</button>' +
+        '<button onclick="reenviarLinkTelegram(\'' + (seg.link_arribo || '') + '\',\'' + (seg.transportista||'chofer') + '\',\'' + op.numero + '\')" style="font-family:var(--mono);font-size:10px;padding:5px 12px;background:transparent;border:1px solid var(--warn);border-radius:4px;color:var(--warn);cursor:pointer">📨 REENVIAR TG</button>' +
+        '</div></div></div>' : '') +
       '</div></div>' : '') +
     (seg && seg.nro_dte ?
       '<div class="detail-section"><div class="detail-section-title">DTE</div><div class="detail-grid">' +
