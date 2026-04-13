@@ -884,11 +884,17 @@
         <div class="form-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))">
           <div class="field">
             <label>Categoría *</label>
-            <select id="c-cat">
+            <select id="c-cat" onchange="actualizarSubcat('c-cat','c-subcat')">
               <option value="">—</option>
               <option>VQ</option><option>VA</option><option>NOV</option>
-              <option>TM</option><option>TH</option><option>TORO</option>
+              <option>TM</option><option>TH</option><option>TORO</option><option>TORITO</option>
               <option>MEJ</option><option>VACA CON CRIA</option><option>VA PREÑADA</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Subcategoría</label>
+            <select id="c-subcat">
+              <option value="">—</option>
             </select>
           </div>
           <div class="field">
@@ -1532,6 +1538,29 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // ── Estado global
 let usuario = null;
 
+// ── SUBCATEGORÍAS POR CATEGORÍA ──
+const SUBCATS = {
+  'VA':           ['Gorda', 'Regular', 'Conserva'],
+  'NOV':          ['Pesado', 'Liviano'],
+  'VQ':           ['Pesada', 'Liviana'],
+  'TM':           [],
+  'TH':           [],
+  'TORO':         [],
+  'TORITO':       [],
+  'MEJ':          [],
+  'VACA CON CRIA':[], 
+  'VA PREÑADA':   [],
+};
+
+function actualizarSubcat(catId, subcatId) {
+  const cat    = document.getElementById(catId)?.value || '';
+  const subcat = document.getElementById(subcatId);
+  if (!subcat) return;
+  const opts = SUBCATS[cat] || [];
+  subcat.innerHTML = '<option value="">—</option>' + opts.map(o => `<option>${o}</option>`).join('');
+  subcat.disabled = opts.length === 0;
+}
+
 // ════════════════════════════════════════════════════
 //  AUTENTICACIÓN — Supabase Auth
 // ════════════════════════════════════════════════════
@@ -2010,6 +2039,7 @@ async function guardarOperacion() {
     operador:     document.getElementById('c-operador').value,
     cant:         parseInt(document.getElementById('c-cant').value)   || null,
     cat:          document.getElementById('c-cat').value,
+    subcat:       document.getElementById('c-subcat').value || null,
     raza:         document.getElementById('c-raza').value,
     kgs:          parseFloat(document.getElementById('c-kgs').value)  || null,
     destino:      document.getElementById('c-destino').value,
@@ -2081,8 +2111,11 @@ function limpiarFormCarga() {
   if (origenAviso) origenAviso.style.display = 'none';
   const origenManual = document.getElementById('c-origen-manual');
   if (origenManual) origenManual.style.display = 'none';
-  ['c-operador','c-cat','c-raza','c-destino','c-acu-comp','c-acu-vend','c-por','c-plazo-cobro','c-plazo-pago']
-    .forEach(id => document.getElementById(id).value = '');
+  ['c-operador','c-cat','c-subcat','c-raza','c-destino','c-acu-comp','c-acu-vend','c-por','c-plazo-cobro','c-plazo-pago']
+    .forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+  // Resetear subcat disabled
+  const subcatEl = document.getElementById('c-subcat');
+  if (subcatEl) { subcatEl.innerHTML = '<option value="">—</option>'; subcatEl.disabled = false; }
   // Resetear cantidad de cargas a 1
   const cantEl = document.getElementById('c-cant-cargas');
   if (cantEl) { cantEl.value = 1; actualizarLabelCargas(1); }
@@ -2223,10 +2256,17 @@ async function cargarPablo() {
         </div>
         <div class="field">
           <label>Categoría real</label>
-          <select id="pablo-cat-${op.id}">
+          <select id="pablo-cat-${op.id}" onchange="actualizarSubcat('pablo-cat-${op.id}','pablo-subcat-${op.id}')">
             <option value="">—</option>
             <option>VQ</option><option>VA</option><option>NOV</option><option>TM</option>
-            <option>TH</option><option>TORO</option><option>MEJ</option>
+            <option>TH</option><option>TORO</option><option>TORITO</option><option>MEJ</option>
+            <option>VACA CON CRIA</option><option>VA PREÑADA</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Subcategoría real</label>
+          <select id="pablo-subcat-${op.id}">
+            <option value="">—</option>
           </select>
         </div>
         <div class="field">
@@ -2272,6 +2312,7 @@ async function cargarPablo() {
 async function confirmarPablo(opId, numero) {
   const cant     = document.getElementById(`pablo-cant-${opId}`).value;
   const cat      = document.getElementById(`pablo-cat-${opId}`).value;
+  const subcat   = document.getElementById(`pablo-subcat-${opId}`)?.value || null;
   const kg       = document.getElementById(`pablo-kg-${opId}`).value;
   const obs      = document.getElementById(`pablo-obs-${opId}`).value;
   const camion   = document.getElementById(`pablo-camion-${opId}`).value;
@@ -2290,6 +2331,7 @@ async function confirmarPablo(opId, numero) {
   await sb.from('seguimiento').update({
     cant_real:      parseInt(cant)    || null,
     cat_real:       cat               || null,
+    subcat_real:    subcat            || null,
     kg_pie:         parseFloat(kg)    || null,
     obs_carga:      obs               || null,
     f_pablo:        new Date().toISOString(),
@@ -3998,7 +4040,9 @@ function poblarDropdowns(ops) {
   gerOpsCache = ops;
   const vendedores  = [...new Set(ops.map(o => o.titular).filter(Boolean))].sort();
   const compradores = [...new Set(ops.map(o => o.comprador).filter(Boolean))].sort();
-  const categorias  = [...new Set(ops.map(o => o.cat).filter(Boolean))].sort();
+  const categorias  = [...new Set(ops.map(o => {
+    return o.subcat ? `${o.cat} - ${o.subcat}` : o.cat;
+  }).filter(Boolean))].sort();
   const consigs     = [...new Set(ops.map(o => o.por).filter(Boolean))].sort();
   const estados     = [...new Set(ops.map(o => o.estado).filter(Boolean))].sort();
 
@@ -4078,7 +4122,10 @@ function aplicarFiltrosGer(ops) {
   return ops.filter(op => {
     if (gerFiltros.vendedor.size  && !gerFiltros.vendedor.has(op.titular))   return false;
     if (gerFiltros.comprador.size && !gerFiltros.comprador.has(op.comprador)) return false;
-    if (gerFiltros.categoria.size && !gerFiltros.categoria.has(op.cat))      return false;
+    if (gerFiltros.categoria.size) {
+      const catKey = op.subcat ? `${op.cat} - ${op.subcat}` : op.cat;
+      if (!gerFiltros.categoria.has(catKey) && !gerFiltros.categoria.has(op.cat)) return false;
+    }
     if (gerFiltros.consig.size    && !gerFiltros.consig.has(op.por))         return false;
     if (gerFiltros.estado.size    && !gerFiltros.estado.has(op.estado))      return false;
     return true;
@@ -4110,7 +4157,7 @@ async function cargarGerencial() {
 
   // Traer operaciones del período
   const { data: opsRaw } = await sb.from('operaciones')
-    .select('id, numero, f_carga, titular, por, comprador, planta, cant, cat, estado')
+    .select('id, numero, f_carga, titular, por, comprador, planta, cant, cat, subcat, estado')
     .gte('f_carga', desde).lte('f_carga', hasta)
     .order('f_carga');
 
