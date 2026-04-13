@@ -371,10 +371,18 @@
   .form-grid .field.full { grid-column: 1 / -1; }
 
   /* ── TABLA OPS ────────────────────────────────────── */
+  .ops-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
   .ops-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 13px;
+    min-width: 900px;
   }
 
   .ops-table th {
@@ -383,22 +391,28 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     color: var(--text2);
-    padding: 9px 8px;
+    padding: 10px 8px;
     text-align: left;
-    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+    border-bottom: 2px solid var(--border);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
 
   .ops-table td {
     padding: 9px 8px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
     color: var(--text);
     vertical-align: middle;
     white-space: nowrap;
     font-size: 12px;
   }
 
-  .ops-table tr:hover td { background: var(--bg3); }
+  .ops-table tbody tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+  .ops-table tbody tr:last-child td { border-bottom: none; }
+  .ops-table tr:hover td { background: var(--bg3) !important; transition: background .1s; }
 
   /* Columnas con ancho fijo para seguimiento */
   .ops-table .col-num    { width: 40px; }
@@ -2873,7 +2887,7 @@ function renderTablaOps(ops, detallado) {
       <td>${['administrador','completo','admin'].includes(usuario?.rol) ? `<button onclick="event.stopPropagation();duplicarOperacion(${op.id})" style="font-family:var(--mono);font-size:9px;letter-spacing:1px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--text2);cursor:pointer" title="Duplicar">⧉ DUP</button>` : ''}</td>
     </tr>`).join('');
 
-  return `<div style="width:100%">
+  return `<div class="ops-table-wrap">
   <table class="ops-table">
     <thead><tr>${detallado ? colsSeguimiento : colsDashboard}</tr></thead>
     <tbody>${detallado ? rowsSeguimiento : rowsDashboard}</tbody>
