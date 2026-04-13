@@ -2453,19 +2453,40 @@ function limpiarFormCarga() {
 let sortState = { col: 'numero', asc: false };
 let opsCache  = []; // cache para filtros client-side
 
-async function cargarSeguimiento() {
-  document.getElementById('tabla-seguimiento').innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
-  const { data: ops } = await sb.from('operaciones')
-    .select('id, numero, f_carga, titular, por, cant, cat, subcat, categorias_json, raza, razas_json, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie, peso_neto, f_pesada, cant_real, cat_real)')
-    .order('numero', { ascending: false });
+let _segPagina = 0;
+const _SEG_POR_PAGINA = 50;
+
+async function cargarSeguimiento(reset = true) {
+  if (reset) {
+    _segPagina = 0;
+    opsCache = [];
+    document.getElementById('tabla-seguimiento').innerHTML = '<div class="loading"><span class="spinner"></span>CARGANDO...</div>';
+  }
+
+  const desde = _segPagina * _SEG_POR_PAGINA;
+  const { data: ops, count } = await sb.from('operaciones')
+    .select('id, numero, f_carga, titular, por, cant, cat, subcat, categorias_json, raza, razas_json, comprador, planta, destino, acuerdo_comp, vta, plazo_cobro, acuerdo_vend, liq_vta, plazo_pago, estado, seguimiento(nro_dte, kg_pie, peso_neto, f_pesada, cant_real, cat_real)', { count: 'exact' })
+    .order('numero', { ascending: false })
+    .range(desde, desde + _SEG_POR_PAGINA - 1);
+
   const opIds = (ops || []).map(o => o.id);
   const { data: roms } = opIds.length
     ? await sb.from('romaneos').select('operacion_id, kg_carne_total').in('operacion_id', opIds)
     : { data: [] };
   const romMap = {};
   (roms || []).forEach(r => { romMap[r.operacion_id] = r; });
-  opsCache = (ops || []).map(op => ({ ...op, _rom: romMap[op.id] || null }));
+
+  const nuevas = (ops || []).map(op => ({ ...op, _rom: romMap[op.id] || null }));
+  opsCache = reset ? nuevas : [...opsCache, ...nuevas];
+
+  // Guardar total para saber si hay más
+  opsCache._total = count || 0;
   aplicarFiltros();
+}
+
+function cargarMas() {
+  _segPagina++;
+  cargarSeguimiento(false);
 }
 
 function aplicarFiltros() {
@@ -2486,15 +2507,29 @@ function aplicarFiltros() {
     return true;
   });
 
-  // Aplicar sorting
   filtradas = sortOps(filtradas);
 
-  const countEl = document.getElementById('filtro-count');
-  if (countEl) countEl.textContent = filtradas.length + ' operaciones';
+  const total = opsCache._total || 0;
+  const cargadas = opsCache.length;
+  const hayMas = cargadas < total;
 
-  document.getElementById('tabla-seguimiento').innerHTML = filtradas.length > 0
+  const countEl = document.getElementById('filtro-count');
+  if (countEl) countEl.textContent = filtradas.length + ' operaciones' + (hayMas ? ` (mostrando ${cargadas} de ${total})` : '');
+
+  const tablaHTML = filtradas.length > 0
     ? renderTablaOps(filtradas, true)
     : '<div class="alert info">Sin operaciones para los filtros seleccionados</div>';
+
+  const botonMas = hayMas ? `
+    <div style="text-align:center;padding:16px">
+      <button onclick="cargarMas()" style="font-family:var(--mono);font-size:11px;letter-spacing:1px;padding:10px 32px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--text2);cursor:pointer;transition:all .2s"
+        onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">
+        ↓ CARGAR MÁS (${total - cargadas} restantes)
+      </button>
+    </div>` : '';
+
+  document.getElementById('tabla-seguimiento').innerHTML = tablaHTML + botonMas;
 }
 
 function sortOps(ops) {
