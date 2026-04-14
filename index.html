@@ -3384,9 +3384,9 @@ async function notificarAdmins(mensaje) {
   if (ADMINS_WA.length > 0) {
     for (const wa of ADMINS_WA) await enviarWhatsApp(wa, mensaje);
   }
-  // Enviar por Telegram como fallback o en paralelo
+  // Enviar por Telegram en paralelo
   if (ADMINS_TG.length > 0 && TELEGRAM_TOKEN) {
-    notificarAdmins(mensaje).catch(e => console.warn("Notif error:", e));
+    for (const id of ADMINS_TG) await enviarTelegram(id, mensaje);
   }
 }
 
