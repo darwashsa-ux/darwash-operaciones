@@ -2718,7 +2718,7 @@ async function guardarOperacion() {
   // Telegram — mensaje único resumido
   if (cantCargas === 1) {
     const msg = armarMensaje({ ...baseOp, numero: nextNum });
-    await notificarAdmins(msg);
+    notificarAdmins(msg).catch(e => console.warn("Notif error:", e));
   } else {
     let msg  = `🐄 *${cantCargas} CARGAS REGISTRADAS*\n`;
     msg     += `━━━━━━━━━━━━━━━━━━\n`;
@@ -2728,7 +2728,7 @@ async function guardarOperacion() {
     msg     += `🏭 *${comprador}* (${baseOp.planta || '?'}) · ${baseOp.destino || '?'}\n`;
     msg     += `━━━━━━━━━━━━━━━━━━\n`;
     msg     += `🔢 Ops #${nextNum} a #${nextNum + cantCargas - 1}`;
-    await notificarAdmins(msg);
+    notificarAdmins(msg).catch(e => console.warn("Notif error:", e));
   }
 
   btn.disabled = false;
@@ -3147,7 +3147,7 @@ async function confirmarPablo(opId, numero) {
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
   msg     += `⚡ Emitir DTE a la brevedad.\n`;
   msg     += `🔗 Link arribo: ${linkArribo}`;
-  await notificarAdmins(msg);
+  notificarAdmins(msg).catch(e => console.warn("Notif error:", e));
 
   mostrarAlerta('alert-pablo', 'success', `✅ Op #${numero} confirmada — <a href="${linkArribo}" target="_blank" style="color:var(--accent);text-decoration:underline">📋 Link arribo chofer</a>`);
   cargarPablo();
@@ -3211,7 +3211,7 @@ async function emitirDTE(opId, numero) {
   msg     += `📝 N° DTE: *${nroDTE}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
   msg     += `🚛 Hacienda en tránsito.`;
-  await notificarAdmins(msg);
+  notificarAdmins(msg).catch(e => console.warn("Notif error:", e));
 
   mostrarAlerta('alert-dte', 'success', `✅ DTE ${nroDTE} registrado para Op #${numero}`);
   cargarDTE();
@@ -3386,7 +3386,7 @@ async function notificarAdmins(mensaje) {
   }
   // Enviar por Telegram como fallback o en paralelo
   if (ADMINS_TG.length > 0 && TELEGRAM_TOKEN) {
-    await notificarAdmins(mensaje);
+    notificarAdmins(mensaje).catch(e => console.warn("Notif error:", e));
   }
 }
 
@@ -3411,7 +3411,7 @@ async function enviarTelegram(chatId, mensaje) {
 async function reenviarLinkTelegram(link, transportista, numero) {
   if (!link) { alert('No hay link guardado para esta operación'); return; }
   const msg = `🔗 *LINK ARRIBO — Op #${numero}*\n━━━━━━━━━━━━━━━━━━\n🚛 Transportista: *${transportista}*\n\nUsá este link para confirmar la descarga en el frigorífico:\n${link}`;
-  await notificarAdmins(msg);
+  notificarAdmins(msg).catch(e => console.warn("Notif error:", e));
   alert('✅ Link reenviado por Telegram');
 }
 
@@ -4198,7 +4198,7 @@ async function guardarCargaExcepcional() {
   msg     += '🏭 *' + comprador + (planta ? ' ('+planta+')' : '') + '*\n';
   msg     += '━━━━━━━━━━━━━━━━━━\n';
   msg     += '⚠️ Carga registrada excepcionalmente por Pablo.';
-  await notificarAdmins(msg);
+  notificarAdmins(msg).catch(e => console.warn("Notif error:", e));
 
   toggleFormExcepcional(false);
   ['ep-titular','ep-comprador','ep-planta','ep-cant'].forEach(id => document.getElementById(id).value = '');
