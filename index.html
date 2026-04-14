@@ -1390,6 +1390,10 @@
             <label>Telegram ID</label>
             <input type="text" id="edit-telegram" placeholder="Opcional">
           </div>
+          <div class="field">
+            <label>WhatsApp</label>
+            <input type="text" id="edit-whatsapp" placeholder="ej: +5491112345678">
+          </div>
           <div style="display:flex;gap:10px;margin-top:20px">
             <button class="btn" style="flex:1" onclick="guardarEdicionUsuario()">GUARDAR</button>
             <button class="btn secondary" style="flex:1" onclick="cerrarModalUsuario()">CANCELAR</button>
@@ -1822,6 +1826,10 @@ const SUPABASE_URL  = 'https://qkrrumlbvspbxjoxvxho.supabase.co';
 const SUPABASE_KEY  = 'sb_publishable_ZKjsxf9lkh4tgkhAayDvbA_6DOE7E6d';
 let TELEGRAM_TOKEN = null;
 let ADMINS_TG      = [];
+let TWILIO_SID     = null;
+let TWILIO_TOKEN   = null;
+let TWILIO_FROM    = null;
+let ADMINS_WA      = []; // números WhatsApp de admins
 
 async function cargarConfig() {
   try {
@@ -1830,8 +1838,16 @@ async function cargarConfig() {
     data.forEach(row => {
       if (row.clave === 'telegram_token')  TELEGRAM_TOKEN = row.valor;
       if (row.clave === 'telegram_admins') ADMINS_TG = row.valor.split(',').map(s => s.trim());
+      if (row.clave === 'twilio_sid')      TWILIO_SID = row.valor;
+      if (row.clave === 'twilio_token')    TWILIO_TOKEN = row.valor;
+      if (row.clave === 'twilio_from')     TWILIO_FROM = row.valor;
     });
-    console.log('✅ Config cargada desde Supabase');
+    // Cargar números WhatsApp de usuarios con rol admin/completo
+    const { data: usrs } = await sb.from('usuarios').select('whatsapp, rol').not('whatsapp', 'is', null);
+    ADMINS_WA = (usrs||[])
+      .filter(u => ['administrador','completo'].includes(u.rol))
+      .map(u => u.whatsapp.startsWith('whatsapp:') ? u.whatsapp : 'whatsapp:' + u.whatsapp);
+    console.log('✅ Config cargada — WhatsApp admins:', ADMINS_WA.length);
   } catch(e) {
     console.warn('Error cargando config:', e);
   }
@@ -2702,7 +2718,7 @@ async function guardarOperacion() {
   // Telegram — mensaje único resumido
   if (cantCargas === 1) {
     const msg = armarMensaje({ ...baseOp, numero: nextNum });
-    for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+    await notificarAdmins(msg);
   } else {
     let msg  = `🐄 *${cantCargas} CARGAS REGISTRADAS*\n`;
     msg     += `━━━━━━━━━━━━━━━━━━\n`;
@@ -2712,7 +2728,7 @@ async function guardarOperacion() {
     msg     += `🏭 *${comprador}* (${baseOp.planta || '?'}) · ${baseOp.destino || '?'}\n`;
     msg     += `━━━━━━━━━━━━━━━━━━\n`;
     msg     += `🔢 Ops #${nextNum} a #${nextNum + cantCargas - 1}`;
-    for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+    await notificarAdmins(msg);
   }
 
   btn.disabled = false;
@@ -3131,7 +3147,7 @@ async function confirmarPablo(opId, numero) {
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
   msg     += `⚡ Emitir DTE a la brevedad.\n`;
   msg     += `🔗 Link arribo: ${linkArribo}`;
-  for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+  await notificarAdmins(msg);
 
   mostrarAlerta('alert-pablo', 'success', `✅ Op #${numero} confirmada — <a href="${linkArribo}" target="_blank" style="color:var(--accent);text-decoration:underline">📋 Link arribo chofer</a>`);
   cargarPablo();
@@ -3195,7 +3211,7 @@ async function emitirDTE(opId, numero) {
   msg     += `📝 N° DTE: *${nroDTE}*\n`;
   msg     += `━━━━━━━━━━━━━━━━━━\n`;
   msg     += `🚛 Hacienda en tránsito.`;
-  for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+  await notificarAdmins(msg);
 
   mostrarAlerta('alert-dte', 'success', `✅ DTE ${nroDTE} registrado para Op #${numero}`);
   cargarDTE();
@@ -3337,6 +3353,43 @@ function actualizarLabelCargas(val) {
 // ════════════════════════════════════════════════════
 //  TELEGRAM
 // ════════════════════════════════════════════════════
+async function enviarWhatsApp(to, mensaje) {
+  if (!TWILIO_SID || !TWILIO_TOKEN || !TWILIO_FROM) {
+    console.warn('⚠ WhatsApp: credenciales Twilio no disponibles');
+    return;
+  }
+  try {
+    const url  = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_SID}/Messages.json`;
+    const body = new URLSearchParams({
+      To:   to.startsWith('whatsapp:') ? to : 'whatsapp:' + to,
+      From: TWILIO_FROM,
+      Body: mensaje.replace(/\*/g, '') // WhatsApp no usa *bold* de Telegram
+    });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + btoa(`${TWILIO_SID}:${TWILIO_TOKEN}`)
+      },
+      body
+    });
+    const json = await res.json();
+    if (json.error_code) console.error('WhatsApp error:', json.message);
+    else console.log('✅ WhatsApp enviado a', to);
+  } catch(e) { console.error('WhatsApp fetch error:', e); }
+}
+
+async function notificarAdmins(mensaje) {
+  // Enviar por WhatsApp si hay admins configurados
+  if (ADMINS_WA.length > 0) {
+    for (const wa of ADMINS_WA) await enviarWhatsApp(wa, mensaje);
+  }
+  // Enviar por Telegram como fallback o en paralelo
+  if (ADMINS_TG.length > 0 && TELEGRAM_TOKEN) {
+    await notificarAdmins(mensaje);
+  }
+}
+
 async function enviarTelegram(chatId, mensaje) {
   if (!TELEGRAM_TOKEN) {
     console.warn('⚠ Telegram: token no disponible, intentando recargar config...');
@@ -3358,7 +3411,7 @@ async function enviarTelegram(chatId, mensaje) {
 async function reenviarLinkTelegram(link, transportista, numero) {
   if (!link) { alert('No hay link guardado para esta operación'); return; }
   const msg = `🔗 *LINK ARRIBO — Op #${numero}*\n━━━━━━━━━━━━━━━━━━\n🚛 Transportista: *${transportista}*\n\nUsá este link para confirmar la descarga en el frigorífico:\n${link}`;
-  for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+  await notificarAdmins(msg);
   alert('✅ Link reenviado por Telegram');
 }
 
@@ -3514,7 +3567,7 @@ async function cargarUsuarios() {
 
   const { data: users, error } = await sb
     .from('usuarios')
-    .select('id, nombre, email, rol, telegram_id, activo, created_at, last_login')
+    .select('id, nombre, email, rol, telegram_id, whatsapp, activo, created_at, last_login')
     .order('created_at', { ascending: true });
 
   if (error || !users) {
@@ -3557,7 +3610,7 @@ async function cargarUsuarios() {
             </td>
             <td>
               <div style="display:flex;gap:6px">
-                <button onclick="abrirEditarUsuario('${u.id}','${u.nombre}','${u.rol}','${u.telegram_id || ''}','${u.email}')"
+                <button onclick="abrirEditarUsuario('${u.id}','${u.nombre}','${u.rol}','${u.telegram_id || ''}','${u.email}','${u.whatsapp || ''}')"
                   style="font-family:var(--mono);font-size:9px;padding:4px 8px;background:transparent;border:1px solid var(--border);border-radius:4px;color:var(--accent2);cursor:pointer">
                   ✎ EDITAR
                 </button>
@@ -3622,12 +3675,13 @@ async function crearUsuario() {
   cargarUsuarios();
 }
 
-function abrirEditarUsuario(id, nombre, rol, telegram, email) {
-  document.getElementById('edit-id').value       = id;
-  document.getElementById('edit-nombre').value   = nombre;
-  document.getElementById('edit-rol').value      = rol;
-  document.getElementById('edit-telegram').value = telegram;
-  document.getElementById('edit-email').value    = email;
+function abrirEditarUsuario(id, nombre, rol, telegram, email, whatsapp='') {
+  document.getElementById('edit-id').value        = id;
+  document.getElementById('edit-nombre').value    = nombre;
+  document.getElementById('edit-rol').value       = rol;
+  document.getElementById('edit-telegram').value  = telegram;
+  document.getElementById('edit-email').value     = email;
+  document.getElementById('edit-whatsapp').value  = whatsapp;
   document.getElementById('modal-usuario').style.display = 'flex';
 }
 
@@ -3640,6 +3694,7 @@ async function guardarEdicionUsuario() {
   const nombre   = document.getElementById('edit-nombre').value.trim();
   const rol      = document.getElementById('edit-rol').value;
   const telegram = document.getElementById('edit-telegram').value.trim();
+  const whatsapp = document.getElementById('edit-whatsapp').value.trim();
 
   if (!nombre || !rol) {
     mostrarAlerta('alert-usuarios', 'error', '⚠ Nombre y rol son obligatorios');
@@ -3651,6 +3706,7 @@ async function guardarEdicionUsuario() {
     nombre,
     rol,
     telegram_id: telegram || null,
+    whatsapp:    whatsapp || null,
     updated_at: new Date()
   }).eq('id', id);
 
@@ -4142,7 +4198,7 @@ async function guardarCargaExcepcional() {
   msg     += '🏭 *' + comprador + (planta ? ' ('+planta+')' : '') + '*\n';
   msg     += '━━━━━━━━━━━━━━━━━━\n';
   msg     += '⚠️ Carga registrada excepcionalmente por Pablo.';
-  for (const id of ADMINS_TG) await enviarTelegram(id, msg);
+  await notificarAdmins(msg);
 
   toggleFormExcepcional(false);
   ['ep-titular','ep-comprador','ep-planta','ep-cant'].forEach(id => document.getElementById(id).value = '');
