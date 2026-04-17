@@ -4390,10 +4390,25 @@ function renderModalResumen(op, seg, rom, cos) {
 
   const cabezas  = seg?.cant_real || op.cant || 0;
   const kgNeto   = seg?.peso_neto   ? Number(seg.peso_neto)   : null;
+  const kgPie    = seg?.kg_pie      ? Number(seg.kg_pie)      : (kgNeto || null);
   const kgCarne  = rom?.kg_carne_total ? Number(rom.kg_carne_total) : null;
   const total    = cos?.total_venta  ? Number(cos.total_venta)  : null;
   const gastos   = cos?.total_costos ? Number(cos.total_costos) : null;
-  const neto     = total && gastos ? total - gastos : null;
+
+  // ── COMPRA AL PRODUCTOR ──
+  const precioCompra = cos?.precio_compra ? Number(cos.precio_compra) : null;
+  const av = (op.acuerdo_vend || '').toUpperCase();
+  let baseCompra = 0;
+  let baseCompraLabel = 'unidad';
+  if (av.includes('PIE'))         { baseCompra = kgPie    || 0; baseCompraLabel = 'Kg Pie'; }
+  else if (av.includes('CARNE'))  { baseCompra = kgCarne  || 0; baseCompraLabel = 'Kg Carne'; }
+  else if (av.includes('CABEZA')) { baseCompra = cabezas  || 0; baseCompraLabel = 'Cabeza'; }
+  const totalCompra = precioCompra && baseCompra ? precioCompra * baseCompra : null;
+  const difBruta    = total != null && totalCompra != null ? total - totalCompra : null;
+  // Neto real = Venta − Compra − Costos (si hay compra). Si no hay, cae al viejo comportamiento.
+  const neto        = total != null && gastos != null
+                      ? total - (totalCompra || 0) - gastos
+                      : null;
 
   // Indicadores principales
   const pxKgCarne  = total && kgCarne  ? total / kgCarne  : null;
@@ -4449,11 +4464,25 @@ function renderModalResumen(op, seg, rom, cos) {
     </div>` : aviso('Sin datos de romaneo o pesada para calcular el rinde')}
 
     ${!cos ? aviso('Sin costeo cargado — los indicadores económicos no están disponibles') : `
+    <!-- OPERACIÓN COMERCIAL (venta vs compra) -->
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">OPERACIÓN COMERCIAL</div>
+    <div style="display:grid;grid-template-columns:repeat(${totalCompra != null ? 3 : 1},1fr);gap:8px;margin-bottom:12px">
+      ${card('Total Venta (Comprador)', fmtM(total), '#facc15')}
+      ${totalCompra != null ? card('Total Compra (Vendedor)', fmtM(totalCompra), '#f87171') : ''}
+      ${difBruta != null ? card('💰 Diferencia Bruta', (difBruta>=0?'+':'')+fmtM(difBruta), difBruta>=0?'#4ade80':'var(--danger)') : ''}
+    </div>
+    ${totalCompra == null ? aviso(`Sin precio de compra cargado. Cargá el precio $/${baseCompraLabel} en la pestaña Costeo para ver la diferencia bruta real.`) : `
+    <div style="background:var(--bg3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-family:var(--mono);font-size:11px;color:var(--text2)">
+      <span style="color:#facc15">${op.acuerdo_comp || '—'}</span> · $${cos.precio_venta ? Number(cos.precio_venta).toLocaleString('es-AR',{maximumFractionDigits:2}) : '—'} × ${kgCarne ? kgCarne.toLocaleString('es-AR') : '—'} kg carne
+      <span style="color:var(--text2);margin:0 8px">→</span>
+      <span style="color:#f87171">${op.acuerdo_vend || '—'}</span> · $${precioCompra ? Number(precioCompra).toLocaleString('es-AR',{maximumFractionDigits:2}) : '—'} × ${Number(baseCompra).toLocaleString('es-AR')} ${baseCompraLabel.toLowerCase()}
+    </div>`}
+
     <!-- INDICADORES ECONÓMICOS -->
     <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">INDICADORES ECONÓMICOS</div>
     <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px">
       ${card('Total Venta', fmtM(total), '#facc15')}
-      ${card('Neto', fmtM(neto), neto>=0?'#4ade80':'var(--danger)')}
+      ${card(totalCompra != null ? 'Neto Darwash (Venta−Compra−Gastos)' : 'Neto (Venta−Gastos)', fmtM(neto), neto>=0?'#4ade80':'var(--danger)')}
     </div>
 
     <div style="font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--text2);margin-bottom:10px">PRECIO FINAL</div>
